@@ -1,0 +1,1 @@
+﻿Within the Test Cases folder, create subfolders named DS-1, DS-2, DS-3, DS-4, and DS-5. Then, store my prompt in a file named DS-{X}_input.md inside its corresponding subfolder (replacing {X} with the ticket number).
