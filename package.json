@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "test": "playwright test",
+    "test:todomvc": "playwright test tests/todomvc"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/taniafaleevlegion/Legion-projects.git"
