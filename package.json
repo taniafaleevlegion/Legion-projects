@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
-    "test:todomvc": "playwright test tests/todomvc"
+    "test:todomvc": "playwright test tests/todomvc.spec.ts"
   },
   "repository": {
     "type": "git",
