@@ -1,10 +1,32 @@
 # Test Plan: Edit Existing Program Details
 
+**Jira:** [DS-2](https://legionqaschool.atlassian.net/browse/DS-2) — *Edit existing program details*  
 **Feature:** Edit existing academic program  
 **Scope:** Program edit modal/form from Programs page (admin)  
+**Environment explored:** `https://test.didaxis.studio` (admin, Programs page)  
 **Reference ACs:** Open edit with pre-populated data, successful name update, partial edit preserves other fields  
 
-> **Note:** The authoring prompt title references "Create new academic program," but the acceptance criteria below describe **edit** behavior. This plan follows the ACs.
+### UI facts (verified on test.didaxis.studio)
+
+| Element | Real behavior |
+|--------|----------------|
+| Route | `/programs` after login |
+| Page title | Heading **Programs** |
+| Create entry | Button matching **+ New Program** (`/New Program/i`) |
+| Edit entry | Row **Edit** control is a button with accessible name **`Edit {Program Name}`** (not a standalone ✏️ emoji in the a11y tree) |
+| Create modal | Dialog heading **New Program**; actions **Create**, **Cancel** |
+| Edit modal | Dialog heading **Edit Program**; actions **Save**, **Cancel**; collapsible **Show AI Generation Config** |
+| Fields | **Program Name** (placeholder `e.g. Computer Science BSc`), **Description** textarea (placeholder `Brief description`) |
+| List | Table rows in `main`; **Program Name** visible in row; **Description** not shown in list (verify via reopening edit) |
+| Empty name on edit | **Save** disabled when Program Name is empty or whitespace-only |
+| Empty Description on edit | **Save** remains enabled (Description optional on edit) |
+| Trim | Leading/trailing spaces on Program Name are **trimmed** on save (same as create) |
+| Duplicate name on edit | **Currently allowed**: PATCH succeeds, modal closes, **no** duplicate error; list can show **multiple rows** with the same display name (create flow rejects duplicates — parity gap) |
+| Max length | Inputs have **no** HTML `maxlength`; edit accepts **101** and **256** character names (PATCH 200) as of exploration |
+| Double-click Save | **Two** PATCH requests observed; modal still closes once |
+| Scale | Programs list can contain **thousands** of rows; **New Program** create may take **60–180s** |
+
+> **Note:** Jira ACs say “edit icon”; automation should target the **`Edit {name}`** button in the program row.
 
 ---
 
@@ -18,6 +40,7 @@
 | TC-004 | Admin saves Description update; modal closes and list reflects change | Medium |
 | TC-005 | Cancel edit discards changes and restores list state | Medium |
 | TC-006 | Updated program remains visible after Programs page reload | Medium |
+| TC-007 | Edit modal exposes optional AI Generation Config section | Low |
 
 ### TC-001 — Edit form opens with current program data pre-filled
 
@@ -30,8 +53,8 @@
 ```gherkin
 Given I am on the Programs page
 And a program "Web Development 2026" exists in the list
-When I click the edit icon on "Web Development 2026"
-Then I see the program edit form
+When I click the Edit button labeled "Edit Web Development 2026" on that row
+Then I see the "Edit Program" dialog
 And the Program Name field contains "Web Development 2026"
 And the Description field contains "Full-stack web development program"
 And I see a "Save" action for submitting the form
@@ -151,6 +174,26 @@ And "Web Development 2026" is not listed under that program's identity
 
 ---
 
+### TC-007 — Edit modal exposes optional AI Generation Config section
+
+**Preconditions**
+- User is logged in as admin.
+- Edit form is open for any program.
+
+**Scenario / Steps**
+```gherkin
+Given I opened edit for an existing program
+Then the dialog heading is "Edit Program"
+And I see a control labeled "Show AI Generation Config"
+When I expand "Show AI Generation Config"
+Then additional AI-related settings are visible
+And Program Name and Description fields remain editable
+```
+
+**Priority:** Low  
+
+---
+
 ## Negative Flows
 
 | ID | Title | Priority |
@@ -160,7 +203,8 @@ And "Web Development 2026" is not listed under that program's identity
 | TC-103 | Failed save does not update the Programs list | High |
 | TC-104 | Non-admin cannot edit an existing program | High |
 | TC-105 | Unauthenticated user cannot open program edit | High |
-| TC-106 | Edit save must not create a duplicate program row | High |
+| TC-106 | Successful rename updates row in place (row count unchanged) | High |
+| TC-108 | Renaming to an existing program name should be rejected (product rule; currently failing on test) | High |
 | TC-107 | Save with invalid data does not partially corrupt stored fields | Medium |
 
 ### TC-101 — Empty Program Name cannot be saved on edit
@@ -260,7 +304,7 @@ And I cannot save changes to "Web Development 2026"
 
 ---
 
-### TC-106 — Edit save must not create a duplicate program row
+### TC-106 — Successful rename updates row in place (row count unchanged)
 
 **Preconditions**
 - User is logged in as admin.
@@ -272,11 +316,34 @@ And I cannot save changes to "Web Development 2026"
 Given the Programs list contains one row for "Web Development 2026"
 When I change Program Name to "Web Development 2026 - Updated"
 And I click Save
-Then the list contains exactly one program representing that record
-And the count of programs does not increase by one
+Then the list contains exactly one row for that program record
+And the total table row count does not increase by one
+And the Edit control accessible name updates to "Edit Web Development 2026 - Updated"
 ```
 
 **Priority:** High  
+
+---
+
+### TC-108 — Renaming to an existing program name should be rejected (product rule; currently failing on test)
+
+**Preconditions**
+- User is logged in as admin.
+- Two distinct programs exist (e.g., "Cloud Computing 2026" and "Web Development 2026").
+
+**Scenario / Steps**
+```gherkin
+Given I am editing "Cloud Computing 2026"
+When I change Program Name to "Web Development 2026" (already used by another program)
+And I click Save
+Then save is rejected with a duplicate-name error
+And the edit modal stays open or shows validation feedback
+And the list still shows exactly one row named "Web Development 2026" and one named "Cloud Computing 2026"
+```
+
+**Priority:** High  
+
+**Observed on test.didaxis.studio (defect):** PATCH returns success, modal closes, **two** rows can share the same display name; no duplicate error shown. Automate against desired rule above; tag as `@known-failure` until fixed.
 
 ---
 
@@ -318,42 +385,42 @@ And stored Description remains "SQL and Python focus"
 | TC-210 | Edit icon accessibility: keyboard activation opens pre-populated form | Medium |
 | TC-211 | Clearing optional Description (if allowed) behavior on save | Low |
 | TC-212 | Very long unchanged session: edit still loads fresh data | Low |
+| TC-213 | Automation tolerates slow create/edit on large Programs list | Medium |
 
-### TC-201 — Program Name at maximum allowed length saves on edit
+### TC-201 — Program Name at 100 characters saves on edit
 
 **Preconditions**
 - User is logged in as admin.
-- Product defines max length N for Program Name (document N from spec).
 - Edit form is open.
 
 **Scenario / Steps**
 ```gherkin
 Given I am editing an existing program
-When I set Program Name to a string of exactly N characters (e.g., "A" repeated N times)
+When I set Program Name to a unique string of exactly 100 characters
 And I click Save
-Then the modal closes
-And the list displays the updated name per UI truncation rules
-And reopening edit shows the full N-character name in the field
+Then the edit modal closes
+And the list shows that program name
+And reopening edit shows the same 100-character Program Name
 ```
 
 **Priority:** Medium  
 
 ---
 
-### TC-202 — Program Name exceeding maximum length is rejected
+### TC-202 — Program Name beyond common limits (101+ chars) on edit
 
 **Preconditions**
 - User is logged in as admin.
-- Max length N is known.
 - Edit form is open.
 
 **Scenario / Steps**
 ```gherkin
 Given I am editing an existing program
-When I set Program Name to a string of N+1 characters
+When I set Program Name to a unique string of 101 characters
 And I click Save
-Then save is prevented or validation error is shown
-And the previous program name remains in the list
+Then either save is rejected with validation (desired, parity with create policy)
+Or save succeeds and the full name is stored (current behavior on test.didaxis.studio)
+And behavior is documented for regression once product max length is confirmed
 ```
 
 **Priority:** Medium  
@@ -391,8 +458,7 @@ And reopening edit shows the full M-character Description
 Given I am editing "Web Development 2026"
 When I set Program Name to "  Web Development 2026 - Updated  "
 And I click Save
-Then the system either trims to "Web Development 2026 - Updated" in the list
-Or rejects whitespace-only padding with validation
+Then the list shows "Web Development 2026 - Updated" with outer spaces trimmed
 And behavior matches create-flow normalization (see DS-1 TC-204)
 ```
 
@@ -424,19 +490,20 @@ And reopening edit shows the same value in Program Name
 
 **Preconditions**
 - User is logged in as admin.
-- Programs "Web Development 2026" and "Cloud Computing 2026" exist.
+- Two programs with **unique** names exist.
 
 **Scenario / Steps**
 ```gherkin
-Given I am editing "Cloud Computing 2026"
-When I change Program Name to "Web Development 2026"
+Given I am editing program B
+When I change Program Name to match program A's name exactly
 And I click Save
-Then the system either rejects with a duplicate-name error
-Or allows duplicate display names per product policy
-And behavior is documented and consistent with create flow
+Then duplicate-name validation matches create flow (reject with error)
+And the list does not contain two rows with the same display name
 ```
 
 **Priority:** Medium  
+
+**Alias:** See **TC-108** (negative). On test.didaxis.studio today, duplicate rename **succeeds** — treat as defect vs create.
 
 ---
 
@@ -471,9 +538,10 @@ And stored value is escaped or sanitized per security policy
 Given I am editing "Web Development 2026"
 When I change Program Name to "Web Development 2026 - Updated"
 And I double-click Save quickly
-Then the modal closes once
-And exactly one update is applied
+Then the modal closes
+And ideally exactly one PATCH update is applied
 And the list shows a single row with "Web Development 2026 - Updated"
+And if two PATCH requests are sent, the UI must not create a second row or corrupt data (known issue: double PATCH observed)
 ```
 
 **Priority:** Medium  
@@ -510,7 +578,7 @@ And the list does not show inconsistent name vs. detail view
 **Scenario / Steps**
 ```gherkin
 Given I am on the Programs page
-And focus is on the edit control for "Web Development 2026"
+And focus is on the Edit button "Edit Web Development 2026" for that row
 When I activate the control via keyboard (Enter or Space)
 Then the edit form opens
 And Program Name and Description fields are pre-populated with current values
@@ -526,7 +594,7 @@ And focus moves into the modal per accessibility guidelines
 **Preconditions**
 - User is logged in as admin.
 - Program has non-empty Description.
-- Product allows empty Description on edit (assumption).
+- Program has non-empty Description.
 
 **Scenario / Steps**
 ```gherkin
@@ -534,9 +602,9 @@ Given I am editing a program with Description "Full-stack web development progra
 When I clear Description completely
 And I leave Program Name unchanged
 And I click Save
-Then save succeeds or validation fails per product rules
+Then save succeeds (Save is enabled with empty Description on test.didaxis.studio)
 And Program Name remains unchanged
-And Description is empty or save is blocked consistently with create rules
+And reopening edit shows an empty Description
 ```
 
 **Priority:** Low  
@@ -562,41 +630,57 @@ And the list does not show stale name after successful save
 
 ---
 
+### TC-213 — Automation tolerates slow create/edit on large Programs list
+
+**Preconditions**
+- Shared test environment with a large existing program catalog (thousands of rows).
+
+**Scenario / Steps**
+```gherkin
+Given I am on the Programs page with many existing programs
+When I create a new program for edit test setup
+Then the create modal closes within an extended timeout (e.g., 180 seconds)
+And the new program row appears with Edit button "Edit {name}"
+When I open edit and save a valid change
+Then the edit flow completes without timing out due to list size alone
+```
+
+**Priority:** Medium  
+
+---
+
 ## Traceability Matrix (AC → Test Cases)
 
 | Acceptance criterion | Test case IDs |
 |----------------------|---------------|
-| Open program for editing (pre-populated form) | TC-001, TC-210 |
+| Open program for editing (pre-populated form) | TC-001, TC-007, TC-210 |
 | Successfully edit a program name | TC-002, TC-006, TC-106, TC-208 |
-| Edit preserves unchanged fields | TC-003, TC-107 |
+| Edit preserves unchanged fields | TC-003, TC-107, TC-211 |
+| Duplicate / validation parity (gap) | TC-108, TC-206, TC-201, TC-202 |
 
 ---
 
 ## Ambiguities, Assumptions, and Gaps
 
-1. **Feature title vs. ACs** — Task text says "Create new academic program," but all ACs describe **edit**. This plan targets edit; confirm ticket DS-2 scope with product.
+1. **Edit entry control** — AC says “edit icon”; live UI exposes **`Edit {Program Name}`** button (Mantine ActionIcon). Tests should use that accessible name.
 
-2. **Field inventory** — ACs mention Name, Description, and "other fields." Only Program Name and Description are assumed (aligned with DS-1 create form). Additional fields (code, status, dates, department) are not specified; TC-003 cannot verify unnamed fields.
+2. **Field inventory** — ACs mention “other fields.” Edit modal also has **Show AI Generation Config** (TC-007). Only Program Name and Description are in scope for DS-2 AC mapping.
 
-3. **Label naming** — AC uses "Name"; DS-1 uses "Program Name." Assumed same field; confirm UI label in implementation.
+3. **List update semantics** — Name changes appear in the list immediately; Description changes require reopening edit (TC-004).
 
-4. **List update semantics** — AC requires immediate list update after name change. Unclear whether Description changes must appear in the list or only in edit/detail (TC-004).
+4. **Validation parity gap** — Create rejects duplicates (DS-3); **edit currently allows duplicate names** (TC-108). Max length is not enforced in the DOM on edit; 101–256+ chars save successfully until product limit is defined.
 
-5. **Validation parity** — No AC stating edit uses the same rules as create (empty name, max length, duplicates). Edge and negative cases assume parity with DS-1 unless spec differs.
+5. **Scale** — Large shared catalog slows create; automation needs long timeouts (TC-213).
 
-6. **Modal dismiss** — No AC for Escape, click-outside, or unsaved-changes warning when closing edit (TC-005 partial coverage).
+6. **Modal dismiss** — No AC for Escape, overlay click, or unsaved-changes warning (TC-005 covers Cancel only).
 
-7. **Success feedback** — No toast or inline "Saved" message; only modal close and list update are asserted.
+7. **Success feedback** — No toast; modal close + list update are the success signals.
 
-8. **Edit entry point** — AC specifies edit icon only; no AC for row click, context menu, or bulk edit.
+8. **Permissions** — Admin-only assumed; non-admin paths not verified on test (TC-104).
 
-9. **Persistence** — ACs do not require browser reload after save; TC-006 is recommended smoke, not AC-mapped.
+9. **Double submit** — Double-click Save issues duplicate PATCH (TC-208); ideal guard not yet implemented.
 
-10. **Permissions** — "Admin" role definition and audit logging for edits are not in ACs (TC-104).
-
-11. **Optimistic UI** — Immediate list update may be optimistic; TC-103 needed if rollback on failure is required but not documented.
-
-12. **Program identity** — After rename, unclear whether internal ID, URL, or deep links change; only display name in list is covered.
+10. **Program identity** — Internal ID not surfaced in UI; tests use display name and Edit button label after rename.
 
 ---
 

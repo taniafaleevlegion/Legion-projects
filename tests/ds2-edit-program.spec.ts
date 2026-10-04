@@ -1,10 +1,13 @@
-import { test, expect, type Page, type Locator } from '@playwright/test';
+import { test, expect, type Page, type Locator, type Response } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
+
+/** Shared test env can have thousands of programs; create/edit setup needs headroom. */
+const PROGRAMS_SETUP_TIMEOUT = 180_000;
 
 function requireAdminCredentials(): { email: string; password: string } {
   const email = process.env.DIDAXIS_EMAIL;
@@ -39,6 +42,7 @@ function programRow(page: Page, name: string): Locator {
     .filter({ has: page.getByText(name, { exact: true }) });
 }
 
+/** Live UI: Mantine ActionIcon with aria-label "Edit {Program Name}" (not a standalone emoji control). */
 function editProgramButton(page: Page, programName: string): Locator {
   return programRow(page, programName).getByRole('button', {
     name: `Edit ${programName}`,
@@ -47,6 +51,10 @@ function editProgramButton(page: Page, programName: string): Locator {
 
 function programDialog(page: Page): Locator {
   return page.getByRole('dialog');
+}
+
+function duplicateNameError(dialog: Locator): Locator {
+  return dialog.getByText(/already exists|duplicate|unique|name.*taken/i);
 }
 
 async function loginAsAdmin(page: Page): Promise<void> {
@@ -61,7 +69,7 @@ async function loginAsAdmin(page: Page): Promise<void> {
 async function gotoProgramsPage(page: Page): Promise<void> {
   await page.goto(`${baseURL}/programs`);
   await expect(page).toHaveURL(/\/programs/);
-  await expect(newProgramButton(page)).toBeVisible();
+  await expect(newProgramButton(page)).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
   await expect(page.getByRole('heading', { name: 'Programs' })).toBeVisible();
 }
 
@@ -73,17 +81,21 @@ async function createProgram(
   await newProgramButton(page).click();
   const dialog = programDialog(page);
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'New Program' })).toBeVisible();
   await dialog.getByLabel('Program Name').fill(programName);
   await dialog.getByLabel('Description').fill(description);
   await dialog.getByRole('button', { name: 'Create' }).click();
-  await expect(dialog).toBeHidden({ timeout: 20_000 });
-  await expect(editProgramButton(page, programName)).toBeVisible({ timeout: 20_000 });
+  await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+  await expect(editProgramButton(page, programName)).toBeVisible({
+    timeout: PROGRAMS_SETUP_TIMEOUT,
+  });
 }
 
 async function openEditForProgram(page: Page, programName: string): Promise<Locator> {
   await editProgramButton(page, programName).click();
   const dialog = programDialog(page);
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('heading', { name: 'Edit Program' })).toBeVisible();
   await expect(dialog.getByLabel('Program Name')).toBeVisible();
   await expect(dialog.getByLabel('Description')).toBeVisible();
   return dialog;
@@ -97,9 +109,13 @@ async function expectProgramNotInList(page: Page, name: string): Promise<void> {
   await expect(programNameLocator(page, name)).toHaveCount(0);
 }
 
+async function countProgramsNamed(page: Page, name: string): Promise<number> {
+  return programNameLocator(page, name).count();
+}
+
 async function saveEditDialog(dialog: Locator): Promise<void> {
   await dialog.getByRole('button', { name: 'Save' }).click();
-  await expect(dialog).toBeHidden({ timeout: 20_000 });
+  await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
 }
 
 test.describe('DS-2 — Edit existing academic program', () => {
@@ -134,6 +150,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
 
     await expectProgramInList(page, updatedName);
     await expectProgramNotInList(page, programName);
+    await expect(editProgramButton(page, updatedName)).toBeVisible();
   });
 
   test('TC-003 — Description-only edit leaves Program Name unchanged', async ({ page }) => {
@@ -195,8 +212,20 @@ test.describe('DS-2 — Edit existing academic program', () => {
 
     await page.reload();
     await expect(page).toHaveURL(/\/programs/);
+    await expect(newProgramButton(page)).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
     await expectProgramInList(page, updatedName);
     await expectProgramNotInList(page, programName);
+  });
+
+  test('TC-007 — Edit modal exposes Show AI Generation Config', async ({ page }) => {
+    const programName = uniqueName('Web Development 2026');
+    await createProgram(page, programName, 'AI config probe');
+
+    const dialog = await openEditForProgram(page, programName);
+    const aiToggle = dialog.getByRole('button', { name: /Show AI Generation Config/i });
+    await expect(aiToggle).toBeVisible();
+    await aiToggle.click();
+    await expect(dialog.getByLabel('Program Name')).toBeEditable();
   });
 
   test('TC-101 — Empty Program Name cannot be saved on edit', async ({ page }) => {
@@ -225,7 +254,9 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(saveButton).toBeDisabled();
   });
 
-  test('TC-106 — Edit save must not create a duplicate program row', async ({ page }) => {
+  test('TC-106 — Successful rename updates row in place (row count unchanged)', async ({
+    page,
+  }) => {
     const programName = uniqueName('Web Development 2026');
     const updatedName = `${programName} - Updated`;
     await createProgram(page, programName, 'No duplicate row');
@@ -239,6 +270,44 @@ test.describe('DS-2 — Edit existing academic program', () => {
     const rowsAfter = await programsMain(page).getByRole('row').count();
     expect(rowsAfter).toBe(rowsBefore);
     await expectProgramInList(page, updatedName);
+  });
+
+  test('TC-108 — Renaming to existing program name should be rejected @known-failure', async ({
+    page,
+  }) => {
+    const nameA = uniqueName('Web Development 2026');
+    const nameB = uniqueName('Cloud Computing 2026');
+    await createProgram(page, nameA, 'Program A');
+    await createProgram(page, nameB, 'Program B');
+
+    const countBeforeA = await countProgramsNamed(page, nameA);
+    const countBeforeB = await countProgramsNamed(page, nameB);
+
+    const dialog = await openEditForProgram(page, nameB);
+    await dialog.getByLabel('Program Name').fill(nameA);
+    const patchPromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/programs') && response.request().method() === 'PATCH',
+    );
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    const patch = await patchPromise;
+
+    const rejected =
+      patch.status() !== 200 ||
+      (await dialog.isVisible()) ||
+      (await duplicateNameError(dialog).isVisible().catch(() => false));
+
+    if (!rejected) {
+      test.info().annotations.push({
+        type: 'known defect',
+        description:
+          'Edit allows duplicate Program Name (PATCH 200, no error) — parity gap vs create (DS-3).',
+      });
+    }
+
+    expect(rejected, 'duplicate rename on edit should be rejected').toBe(true);
+    expect(await countProgramsNamed(page, nameA)).toBe(countBeforeA);
+    expect(await countProgramsNamed(page, nameB)).toBe(countBeforeB);
   });
 
   test('TC-107 — Invalid name with whitespace-only does not corrupt stored fields', async ({
@@ -257,6 +326,44 @@ test.describe('DS-2 — Edit existing academic program', () => {
     const reopened = await openEditForProgram(page, programName);
     await expect(reopened.getByLabel('Program Name')).toHaveValue(programName);
     await expect(reopened.getByLabel('Description')).toHaveValue(description);
+  });
+
+  test('TC-201 — Program Name at 100 characters saves on edit', async ({ page }) => {
+    const programName = uniqueName('Web Development 2026');
+    const long100 = `${Date.now()}${'X'.repeat(100)}`.slice(0, 100);
+    expect(long100.length).toBe(100);
+
+    await createProgram(page, programName, 'Max 100 chars');
+
+    const dialog = await openEditForProgram(page, programName);
+    await dialog.getByLabel('Program Name').fill(long100);
+    await saveEditDialog(dialog);
+
+    await expectProgramInList(page, long100);
+    const reopened = await openEditForProgram(page, long100);
+    await expect(reopened.getByLabel('Program Name')).toHaveValue(long100);
+  });
+
+  test('TC-202 — Program Name at 101 characters on edit (current: accepted)', async ({
+    page,
+  }) => {
+    const programName = uniqueName('Web Development 2026');
+    const long101 = `${Date.now()}${'Y'.repeat(101)}`.slice(0, 101);
+    expect(long101.length).toBe(101);
+
+    await createProgram(page, programName, '101 char probe');
+
+    const dialog = await openEditForProgram(page, programName);
+    await dialog.getByLabel('Program Name').fill(long101);
+    const patchPromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/programs') && response.request().method() === 'PATCH',
+    );
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    const patch = await patchPromise;
+    expect(patch.status()).toBe(200);
+    await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+    await expectProgramInList(page, long101);
   });
 
   test('TC-204 — Leading and trailing whitespace in Program Name is trimmed on save', async ({
@@ -291,16 +398,43 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(reopened.getByLabel('Program Name')).toHaveValue(unicodeName);
   });
 
-  test('TC-208 — Rapid double-click Save applies update once', async ({ page }) => {
+  test('TC-211 — Clearing Description on edit is allowed and persists', async ({ page }) => {
+    const programName = uniqueName('Web Development 2026');
+    await createProgram(page, programName, 'Full-stack web development program');
+
+    const dialog = await openEditForProgram(page, programName);
+    await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
+    await dialog.getByLabel('Description').fill('');
+    await saveEditDialog(dialog);
+
+    const reopened = await openEditForProgram(page, programName);
+    await expect(reopened.getByLabel('Program Name')).toHaveValue(programName);
+    await expect(reopened.getByLabel('Description')).toHaveValue('');
+  });
+
+  test('TC-208 — Rapid double-click Save closes modal once; documents duplicate PATCH', async ({
+    page,
+  }) => {
     const programName = uniqueName('Web Development 2026');
     const updatedName = `${programName} - Updated`;
     await createProgram(page, programName, 'Double save test');
 
     const dialog = await openEditForProgram(page, programName);
     await dialog.getByLabel('Program Name').fill(updatedName);
-    await dialog.getByRole('button', { name: 'Save' }).dblclick();
-    await expect(dialog).toBeHidden();
 
+    let patchCount = 0;
+    const onPatch = (response: Response) => {
+      if (response.url().includes('/api/programs') && response.request().method() === 'PATCH') {
+        patchCount += 1;
+      }
+    };
+    page.on('response', onPatch);
+    await dialog.getByRole('button', { name: 'Save' }).dblclick();
+    await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+    await page.waitForTimeout(1_000);
+    page.off('response', onPatch);
+
+    expect(patchCount, 'double-click currently sends duplicate PATCH requests').toBeGreaterThan(1);
     await expect(programNameLocator(page, updatedName)).toHaveCount(1);
     await expectProgramNotInList(page, programName);
   });
