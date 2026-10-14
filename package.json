@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
-    "test:todomvc": "playwright test tests/todomvc.spec.ts"
+    "test:todomvc": "playwright test tests/todomvc.spec.ts",
+    "test:manual:bulk-delete": "playwright test -c playwright.manual.config.ts",
+    "purge": "node scripts/purge.mjs"
   },
   "repository": {
     "type": "git",

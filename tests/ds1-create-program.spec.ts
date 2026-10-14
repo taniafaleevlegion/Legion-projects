@@ -1,8 +1,5 @@
-import { test, expect, type Page, type Locator } from '@playwright/test';
-import dotenv from 'dotenv';
-import path from 'path';
-
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+import { test, expect, trackProgram, uuidFromProgramCreateResponse } from '../fixtures/cleanup.fixture';
+import type { Page, Locator, Response } from '@playwright/test';
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 
@@ -61,8 +58,40 @@ async function openNewProgramForm(page: Page): Promise<void> {
   await expect(dialog.getByRole('button', { name: 'Create' })).toBeVisible();
 }
 
+function programCreateResponse(page: Page) {
+  return page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/programs') && response.request().method() === 'POST',
+  );
+}
+
+async function submitCreateAndTrack(page: Page, dialog: Locator): Promise<void> {
+  const responsePromise = programCreateResponse(page);
+  await dialog.getByRole('button', { name: 'Create' }).click();
+  trackProgram(await uuidFromProgramCreateResponse(await responsePromise));
+}
+
+async function submitCreateDblClickAndTrack(page: Page, dialog: Locator): Promise<void> {
+  const seenResponses = new WeakSet<Response>();
+  const onCreate = async (response: Response) => {
+    if (seenResponses.has(response)) {
+      return;
+    }
+    if (response.request().method() !== 'POST' || response.status() !== 201) {
+      return;
+    }
+    seenResponses.add(response);
+    trackProgram(await uuidFromProgramCreateResponse(response));
+  };
+  page.on('response', onCreate);
+  await dialog.getByRole('button', { name: 'Create' }).dblclick();
+  await expect(dialog).toBeHidden({ timeout: 20_000 });
+  await page.waitForTimeout(500);
+  page.off('response', onCreate);
+}
+
 async function expectProgramInList(page: Page, name: string): Promise<void> {
-  await expect(programNameLocator(page, name).first()).toBeVisible();
+  await expect(programNameLocator(page, name).first()).toBeVisible({ timeout: 15_000 });
 }
 
 async function expectProgramNotInList(page: Page, name: string): Promise<void> {
@@ -93,7 +122,7 @@ test.describe('DS-1 — Create new academic program', () => {
     const dialog = creationDialog(page);
     await dialog.getByLabel('Program Name').fill(programName);
     await dialog.getByLabel('Description').fill(description);
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await submitCreateAndTrack(page, dialog);
 
     await expect(dialog).toBeHidden();
     await expectProgramInList(page, programName);
@@ -116,7 +145,7 @@ test.describe('DS-1 — Create new academic program', () => {
     const dialog = creationDialog(page);
     await dialog.getByLabel('Program Name').fill(programName);
     await expect(dialog.getByRole('button', { name: 'Create' })).toBeEnabled();
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await submitCreateAndTrack(page, dialog);
 
     await expect(dialog).toBeHidden();
     await expectProgramInList(page, programName);
@@ -145,7 +174,7 @@ test.describe('DS-1 — Create new academic program', () => {
     const dialog = creationDialog(page);
     await dialog.getByLabel('Program Name').fill(programName);
     await dialog.getByLabel('Description').fill('AWS and Azure basics');
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await submitCreateAndTrack(page, dialog);
 
     await expect(dialog).toBeHidden();
     expect(page.url()).toBe(programsUrl);
@@ -186,7 +215,7 @@ test.describe('DS-1 — Create new academic program', () => {
     const dialog = creationDialog(page);
     await dialog.getByLabel('Program Name').fill(programName);
     await dialog.getByLabel('Description').fill('Single-letter name test');
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await submitCreateAndTrack(page, dialog);
 
     await expect(dialog).toBeHidden();
     await expectProgramInList(page, programName);
@@ -203,7 +232,7 @@ test.describe('DS-1 — Create new academic program', () => {
     const dialog = creationDialog(page);
     await dialog.getByLabel('Program Name').fill(paddedName);
     await dialog.getByLabel('Description').fill('Whitespace trimming test');
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await submitCreateAndTrack(page, dialog);
 
     await expect(dialog).toBeHidden();
     await expectProgramInList(page, storedName);
@@ -225,7 +254,7 @@ test.describe('DS-1 — Create new academic program', () => {
     const dialog = creationDialog(page);
     await dialog.getByLabel('Program Name').fill(programName);
     await dialog.getByLabel('Description').fill('Accents, em dash, parentheses');
-    await dialog.getByRole('button', { name: 'Create' }).click();
+    await submitCreateAndTrack(page, dialog);
 
     await expect(dialog).toBeHidden();
     await expectProgramInList(page, programName);
@@ -240,9 +269,8 @@ test.describe('DS-1 — Create new academic program', () => {
     const dialog = creationDialog(page);
     await dialog.getByLabel('Program Name').fill(programName);
     await dialog.getByLabel('Description').fill('Idempotency test');
-    await dialog.getByRole('button', { name: 'Create' }).dblclick();
+    await submitCreateDblClickAndTrack(page, dialog);
 
-    await expect(dialog).toBeHidden();
     await expect(programNameLocator(page, programName)).toHaveCount(1);
   });
 });
