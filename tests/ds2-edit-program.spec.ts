@@ -1,24 +1,9 @@
 import { test, expect, type Page, type Locator, type Response } from '@playwright/test';
-import dotenv from 'dotenv';
-import path from 'path';
-
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 
 /** Shared test env can have thousands of programs; create/edit setup needs headroom. */
 const PROGRAMS_SETUP_TIMEOUT = 180_000;
-
-function requireAdminCredentials(): { email: string; password: string } {
-  const email = process.env.DIDAXIS_EMAIL;
-  const password = process.env.DIDAXIS_PASSWORD;
-  if (!email || !password) {
-    throw new Error(
-      'DIDAXIS_EMAIL and DIDAXIS_PASSWORD must be set (e.g. via .env loaded by dotenv).',
-    );
-  }
-  return { email, password };
-}
 
 function uniqueName(prefix: string): string {
   return `${prefix} ${Date.now()}`;
@@ -55,15 +40,6 @@ function programDialog(page: Page): Locator {
 
 function duplicateNameError(dialog: Locator): Locator {
   return dialog.getByText(/already exists|duplicate|unique|name.*taken/i);
-}
-
-async function loginAsAdmin(page: Page): Promise<void> {
-  const { email, password } = requireAdminCredentials();
-  await page.goto(`${baseURL}/login`);
-  await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(password);
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await expect(page).not.toHaveURL(/\/login$/);
 }
 
 async function gotoProgramsPage(page: Page): Promise<void> {
@@ -122,7 +98,6 @@ test.describe('DS-2 — Edit existing academic program', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
-    await loginAsAdmin(page);
     await gotoProgramsPage(page);
   });
 
@@ -440,8 +415,12 @@ test.describe('DS-2 — Edit existing academic program', () => {
   });
 });
 
-test('TC-105 — Unauthenticated user cannot open program edit', async ({ page }) => {
-  await page.goto(`${baseURL}/programs`);
-  await expect(page).toHaveURL(/\/login/);
-  await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
+test.describe('DS-2 — Unauthenticated access', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test('TC-105 — Unauthenticated user cannot open program edit', async ({ page }) => {
+    await page.goto(`${baseURL}/programs`);
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
+  });
 });

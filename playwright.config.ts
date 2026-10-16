@@ -38,18 +38,29 @@ export default defineConfig({
   /* Configure projects for major browsers */
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'],
+      testIgnore: /.*\.setup\.ts/,
     },
 
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      testIgnore: /.*\.setup\.ts/,
     },
 
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+      testIgnore: /.*\.setup\.ts/,
     },
 
     /* Test against mobile viewports. */
