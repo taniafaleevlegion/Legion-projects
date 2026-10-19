@@ -73,7 +73,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await submitCreateAndTrack(programs);
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programNameInList(programName).first()).toBeVisible({ timeout: 15_000 });
+    await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-003 — Create button disabled when Program Name is empty', async ({ page }) => {
@@ -95,7 +95,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await submitCreateAndTrack(programs);
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programNameInList(programName).first()).toBeVisible({ timeout: 15_000 });
+    await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-005 — Admin cancels creation; no new program in list', async ({ page }) => {
@@ -108,7 +108,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await programs.newProgramModal.clickCancel();
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programNameInList(programName)).toHaveCount(0);
+    await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
   test('TC-006 — New program appears in list without full page reload', async ({
@@ -125,7 +125,7 @@ test.describe('DS-1 — Create new academic program', () => {
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
     expect(page.url()).toBe(programsUrl);
-    await expect(programs.programNameInList(programName).first()).toBeVisible({ timeout: 15_000 });
+    await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-102 — Empty Program Name cannot result in a saved program', async ({
@@ -162,7 +162,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await submitCreateAndTrack(programs);
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programNameInList(programName).first()).toBeVisible({ timeout: 15_000 });
+    await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-204 — Program Name with leading and trailing whitespace is trimmed', async ({
@@ -179,7 +179,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await submitCreateAndTrack(programs);
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programNameInList(storedName).first()).toBeVisible({ timeout: 15_000 });
+    await expect(programs.programRow(storedName)).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-205 — Program Name containing only whitespace cannot be created', async ({
@@ -201,7 +201,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await submitCreateAndTrack(programs);
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programNameInList(programName).first()).toBeVisible({ timeout: 15_000 });
+    await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
   test('TC-212 — Rapid double-click on Create creates only one program', async ({
@@ -215,7 +215,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await programs.newProgramModal.fillDescription('Idempotency test');
     await submitCreateDblClickAndTrack(programs);
 
-    await expect(programs.programNameInList(programName)).toHaveCount(1);
+    await expect(programs.programRow(programName)).toHaveCount(1);
   });
 });
 

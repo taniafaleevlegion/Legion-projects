@@ -1,20 +1,8 @@
 import { test, expect, trackProgram, uuidFromProgramCreateResponse } from '../fixtures/cleanup.fixture';
 import type { Page } from '@playwright/test';
-import { LoginPage } from '../pages/LoginPage';
 import { ProgramsPage } from '../pages/ProgramsPage';
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
-
-function requireAdminCredentials(): { email: string; password: string } {
-  const email = process.env.DIDAXIS_EMAIL;
-  const password = process.env.DIDAXIS_PASSWORD;
-  if (!email || !password) {
-    throw new Error(
-      'DIDAXIS_EMAIL and DIDAXIS_PASSWORD must be set (e.g. via .env loaded by playwright.config.ts).',
-    );
-  }
-  return { email, password };
-}
 
 function uniqueName(prefix: string): string {
   return `${prefix} ${Date.now()}`;
@@ -78,12 +66,6 @@ async function expectDuplicateCreateRejected(
 
 test.describe('DS-3 — Program name validation and duplicate prevention', () => {
   test.beforeEach(async ({ page }) => {
-    const { email, password } = requireAdminCredentials();
-    const login = new LoginPage(page);
-    await login.goto(baseURL);
-    await login.login(email, password);
-    await expect(page).not.toHaveURL(/\/login$/);
-
     const programs = new ProgramsPage(page);
     await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/programs/);

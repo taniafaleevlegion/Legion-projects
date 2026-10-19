@@ -1,5 +1,8 @@
 import type { Locator, Page } from '@playwright/test';
+import { EditProgramModal } from './EditProgramModal';
 import { NewProgramModal } from './NewProgramModal';
+
+const emptyStatePattern = /no programs|no program has been|create your first|get started by creating/i;
 
 export class ProgramsPage {
   readonly page: Page;
@@ -8,6 +11,7 @@ export class ProgramsPage {
   readonly programsHeading: Locator;
   readonly signInButton: Locator;
   readonly newProgramModal: NewProgramModal;
+  readonly editProgramModal: EditProgramModal;
 
   constructor(page: Page) {
     this.page = page;
@@ -16,6 +20,7 @@ export class ProgramsPage {
     this.programsHeading = page.getByRole('heading', { name: 'Programs' });
     this.signInButton = page.getByRole('button', { name: 'Sign In' });
     this.newProgramModal = new NewProgramModal(page);
+    this.editProgramModal = new EditProgramModal(page);
   }
 
   programNameInList(name: string): Locator {
@@ -23,11 +28,33 @@ export class ProgramsPage {
   }
 
   programRow(name: string): Locator {
-    return this.main.getByRole('row').filter({ hasText: name });
+    return this.main
+      .getByRole('row')
+      .filter({ has: this.page.getByText(name, { exact: true }) });
+  }
+
+  programRowWithDescription(name: string, description: string): Locator {
+    return this.programRow(name).filter({
+      has: this.page.getByText(description, { exact: true }),
+    });
   }
 
   editProgramButton(programName: string): Locator {
     return this.programRow(programName).getByRole('button', { name: `Edit ${programName}` });
+  }
+
+  deleteProgramButton(programName: string): Locator {
+    return this.programRow(programName).getByRole('button', {
+      name: `Delete ${programName}`,
+    });
+  }
+
+  emptyStateMessage(): Locator {
+    return this.main.getByText(emptyStatePattern);
+  }
+
+  tableRows(): Locator {
+    return this.main.getByRole('row');
   }
 
   async goto(baseURL: string): Promise<void> {
@@ -36,6 +63,14 @@ export class ProgramsPage {
 
   async openNewProgramForm(): Promise<void> {
     await this.newProgramButton.click();
+  }
+
+  async openEditProgram(programName: string): Promise<void> {
+    await this.editProgramButton(programName).click();
+  }
+
+  async clickDeleteProgram(programName: string): Promise<void> {
+    await this.deleteProgramButton(programName).click();
   }
 
   async createProgram(programName: string, description?: string): Promise<void> {

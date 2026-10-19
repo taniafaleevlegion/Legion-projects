@@ -1,4 +1,6 @@
-import { test, expect, type Page, type Locator, type Response } from '@playwright/test';
+import { test, expect, trackProgram, uuidFromProgramCreateResponse } from '../fixtures/cleanup.fixture';
+import type { Page, Response } from '@playwright/test';
+import { ProgramsPage } from '../pages/ProgramsPage';
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 
@@ -9,268 +11,230 @@ function uniqueName(prefix: string): string {
   return `${prefix} ${Date.now()}`;
 }
 
-function newProgramButton(page: Page): Locator {
-  return page.getByRole('button', { name: /New Program/i });
-}
-
-function programsMain(page: Page): Locator {
-  return page.getByRole('main');
-}
-
-function programNameLocator(page: Page, name: string): Locator {
-  return programsMain(page).getByText(name, { exact: true });
-}
-
-function programRow(page: Page, name: string): Locator {
-  return programsMain(page)
-    .getByRole('row')
-    .filter({ has: page.getByText(name, { exact: true }) });
-}
-
-/** Live UI: Mantine ActionIcon with aria-label "Edit {Program Name}" (not a standalone emoji control). */
-function editProgramButton(page: Page, programName: string): Locator {
-  return programRow(page, programName).getByRole('button', {
-    name: `Edit ${programName}`,
-  });
-}
-
-function programDialog(page: Page): Locator {
-  return page.getByRole('dialog');
-}
-
-function duplicateNameError(dialog: Locator): Locator {
-  return dialog.getByText(/already exists|duplicate|unique|name.*taken/i);
-}
-
-async function gotoProgramsPage(page: Page): Promise<void> {
-  await page.goto(`${baseURL}/programs`);
-  await expect(page).toHaveURL(/\/programs/);
-  await expect(newProgramButton(page)).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
-  await expect(page.getByRole('heading', { name: 'Programs' })).toBeVisible();
+function programsPage(page: Page): ProgramsPage {
+  return new ProgramsPage(page);
 }
 
 async function createProgram(
-  page: Page,
+  programs: ProgramsPage,
   programName: string,
   description: string,
 ): Promise<void> {
-  await newProgramButton(page).click();
-  const dialog = programDialog(page);
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('heading', { name: 'New Program' })).toBeVisible();
-  await dialog.getByLabel('Program Name').fill(programName);
-  await dialog.getByLabel('Description').fill(description);
-  await dialog.getByRole('button', { name: 'Create' }).click();
-  await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
-  await expect(editProgramButton(page, programName)).toBeVisible({
+  await programs.openNewProgramForm();
+  await programs.newProgramModal.fillProgramName(programName);
+  await programs.newProgramModal.fillDescription(description);
+  const responsePromise = programs.page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/programs') && response.request().method() === 'POST',
+  );
+  await programs.newProgramModal.clickCreate();
+  trackProgram(await uuidFromProgramCreateResponse(await responsePromise));
+  await expect(programs.newProgramModal.dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+  await expect(programs.editProgramButton(programName)).toBeVisible({
     timeout: PROGRAMS_SETUP_TIMEOUT,
   });
 }
 
-async function openEditForProgram(page: Page, programName: string): Promise<Locator> {
-  await editProgramButton(page, programName).click();
-  const dialog = programDialog(page);
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('heading', { name: 'Edit Program' })).toBeVisible();
-  await expect(dialog.getByLabel('Program Name')).toBeVisible();
-  await expect(dialog.getByLabel('Description')).toBeVisible();
-  return dialog;
+async function openEditForm(programs: ProgramsPage, programName: string): Promise<void> {
+  await programs.openEditProgram(programName);
+  await expect(programs.editProgramModal.dialog).toBeVisible();
+  await expect(programs.editProgramModal.heading).toBeVisible();
+  await expect(programs.editProgramModal.programNameField).toBeVisible();
+  await expect(programs.editProgramModal.descriptionField).toBeVisible();
 }
 
-async function expectProgramInList(page: Page, name: string): Promise<void> {
-  await expect(programNameLocator(page, name).first()).toBeVisible();
-}
-
-async function expectProgramNotInList(page: Page, name: string): Promise<void> {
-  await expect(programNameLocator(page, name)).toHaveCount(0);
-}
-
-async function countProgramsNamed(page: Page, name: string): Promise<number> {
-  return programNameLocator(page, name).count();
-}
-
-async function saveEditDialog(dialog: Locator): Promise<void> {
-  await dialog.getByRole('button', { name: 'Save' }).click();
-  await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+async function saveEdit(programs: ProgramsPage): Promise<void> {
+  await programs.editProgramModal.clickSave();
+  await expect(programs.editProgramModal.dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
 }
 
 test.describe('DS-2 — Edit existing academic program', () => {
   test.describe.configure({ mode: 'serial' });
 
   test.beforeEach(async ({ page }) => {
-    await gotoProgramsPage(page);
+    const programs = programsPage(page);
+    await programs.goto(baseURL);
+    await expect(page).toHaveURL(/\/programs/);
+    await expect(programs.newProgramButton).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
+    await expect(programs.programsHeading).toBeVisible();
   });
 
   test('TC-001 — Edit form opens with current program data pre-filled', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const description = 'Full-stack web development program';
-    await createProgram(page, programName, description);
+    await createProgram(programs, programName, description);
 
-    const dialog = await openEditForProgram(page, programName);
-    await expect(dialog.getByLabel('Program Name')).toHaveValue(programName);
-    await expect(dialog.getByLabel('Description')).toHaveValue(description);
-    await expect(dialog.getByRole('button', { name: 'Save' })).toBeVisible();
+    await openEditForm(programs, programName);
+    await expect(programs.editProgramModal.programNameField).toHaveValue(programName);
+    await expect(programs.editProgramModal.descriptionField).toHaveValue(description);
+    await expect(programs.editProgramModal.saveButton).toBeVisible();
   });
 
   test('TC-002 — Program Name update persists and list refreshes immediately', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const updatedName = `${programName} - Updated`;
-    await createProgram(page, programName, 'Full-stack web development program');
+    await createProgram(programs, programName, 'Full-stack web development program');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(updatedName);
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(updatedName);
+    await saveEdit(programs);
 
-    await expectProgramInList(page, updatedName);
-    await expectProgramNotInList(page, programName);
-    await expect(editProgramButton(page, updatedName)).toBeVisible();
+    await expect(programs.programRow(updatedName)).toBeVisible();
+    await expect(programs.programRow(programName)).toHaveCount(0);
+    await expect(programs.editProgramButton(updatedName)).toBeVisible();
   });
 
   test('TC-003 — Description-only edit leaves Program Name unchanged', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Cybersecurity 2026');
     const originalDescription = 'Introductory security track';
     const updatedDescription = 'Introductory security track — includes labs and capstone';
-    await createProgram(page, programName, originalDescription);
+    await createProgram(programs, programName, originalDescription);
 
-    let dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Description').fill(updatedDescription);
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillDescription(updatedDescription);
+    await saveEdit(programs);
 
-    await expectProgramInList(page, programName);
+    await expect(programs.programRow(programName)).toBeVisible();
 
-    dialog = await openEditForProgram(page, programName);
-    await expect(dialog.getByLabel('Program Name')).toHaveValue(programName);
-    await expect(dialog.getByLabel('Description')).toHaveValue(updatedDescription);
+    await openEditForm(programs, programName);
+    await expect(programs.editProgramModal.programNameField).toHaveValue(programName);
+    await expect(programs.editProgramModal.descriptionField).toHaveValue(updatedDescription);
   });
 
   test('TC-004 — Admin saves Description update; modal closes and edit shows new value', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const updatedDescription = 'Full-stack web development program (2026 cohort)';
-    await createProgram(page, programName, 'Original description');
+    await createProgram(programs, programName, 'Original description');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Description').fill(updatedDescription);
-    await saveEditDialog(dialog);
-    await expectProgramInList(page, programName);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillDescription(updatedDescription);
+    await saveEdit(programs);
+    await expect(programs.programRow(programName)).toBeVisible();
 
-    const reopened = await openEditForProgram(page, programName);
-    await expect(reopened.getByLabel('Description')).toHaveValue(updatedDescription);
+    await openEditForm(programs, programName);
+    await expect(programs.editProgramModal.descriptionField).toHaveValue(updatedDescription);
   });
 
   test('TC-005 — Cancel edit discards changes and restores list state', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
-    await createProgram(page, programName, 'Full-stack web development program');
+    await createProgram(programs, programName, 'Full-stack web development program');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill('Should Not Persist');
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName('Should Not Persist');
+    await programs.editProgramModal.clickCancel();
 
-    await expect(dialog).toBeHidden();
-    await expectProgramInList(page, programName);
-    await expectProgramNotInList(page, 'Should Not Persist');
+    await expect(programs.editProgramModal.dialog).toBeHidden();
+    await expect(programs.programRow(programName)).toBeVisible();
+    await expect(programs.programRow('Should Not Persist')).toHaveCount(0);
   });
 
   test('TC-006 — Updated program remains visible after Programs page reload', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const updatedName = `${programName} - Updated`;
-    await createProgram(page, programName, 'Persist after reload');
+    await createProgram(programs, programName, 'Persist after reload');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(updatedName);
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(updatedName);
+    await saveEdit(programs);
 
     await page.reload();
     await expect(page).toHaveURL(/\/programs/);
-    await expect(newProgramButton(page)).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
-    await expectProgramInList(page, updatedName);
-    await expectProgramNotInList(page, programName);
+    await expect(programs.newProgramButton).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
+    await expect(programs.programRow(updatedName)).toBeVisible();
+    await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
   test('TC-007 — Edit modal exposes Show AI Generation Config', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
-    await createProgram(page, programName, 'AI config probe');
+    await createProgram(programs, programName, 'AI config probe');
 
-    const dialog = await openEditForProgram(page, programName);
-    const aiToggle = dialog.getByRole('button', { name: /Show AI Generation Config/i });
-    await expect(aiToggle).toBeVisible();
-    await aiToggle.click();
-    await expect(dialog.getByLabel('Program Name')).toBeEditable();
+    await openEditForm(programs, programName);
+    await expect(programs.editProgramModal.showAiConfigButton).toBeVisible();
+    await programs.editProgramModal.clickShowAiConfig();
+    await expect(programs.editProgramModal.programNameField).toBeEditable();
   });
 
   test('TC-101 — Empty Program Name cannot be saved on edit', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
-    await createProgram(page, programName, 'Full-stack web development program');
+    await createProgram(programs, programName, 'Full-stack web development program');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill('');
-    const saveButton = dialog.getByRole('button', { name: 'Save' });
-    await expect(saveButton).toBeDisabled();
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
-    await expectProgramInList(page, programName);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName('');
+    await expect(programs.editProgramModal.saveButton).toBeDisabled();
+    await programs.editProgramModal.clickCancel();
+    await expect(programs.programRow(programName)).toBeVisible();
   });
 
   test('TC-102 — Save blocked when Program Name is cleared', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
-    await createProgram(page, programName, 'Valid description');
+    await createProgram(programs, programName, 'Valid description');
 
-    const dialog = await openEditForProgram(page, programName);
-    const nameField = dialog.getByLabel('Program Name');
-    const saveButton = dialog.getByRole('button', { name: 'Save' });
-
-    await nameField.fill('');
-    await expect(saveButton).toBeDisabled();
-    await nameField.fill(' ');
-    await expect(saveButton).toBeDisabled();
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName('');
+    await expect(programs.editProgramModal.saveButton).toBeDisabled();
+    await programs.editProgramModal.fillProgramName(' ');
+    await expect(programs.editProgramModal.saveButton).toBeDisabled();
   });
 
   test('TC-106 — Successful rename updates row in place (row count unchanged)', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const updatedName = `${programName} - Updated`;
-    await createProgram(page, programName, 'No duplicate row');
+    await createProgram(programs, programName, 'No duplicate row');
 
-    const rowsBefore = await programsMain(page).getByRole('row').count();
+    const rowsBefore = await programs.tableRows().count();
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(updatedName);
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(updatedName);
+    await saveEdit(programs);
 
-    const rowsAfter = await programsMain(page).getByRole('row').count();
+    const rowsAfter = await programs.tableRows().count();
     expect(rowsAfter).toBe(rowsBefore);
-    await expectProgramInList(page, updatedName);
+    await expect(programs.programRow(updatedName)).toBeVisible();
   });
 
   test('TC-108 — Renaming to existing program name should be rejected @known-failure', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const nameA = uniqueName('Web Development 2026');
     const nameB = uniqueName('Cloud Computing 2026');
-    await createProgram(page, nameA, 'Program A');
-    await createProgram(page, nameB, 'Program B');
+    await createProgram(programs, nameA, 'Program A');
+    await createProgram(programs, nameB, 'Program B');
 
-    const countBeforeA = await countProgramsNamed(page, nameA);
-    const countBeforeB = await countProgramsNamed(page, nameB);
+    const countBeforeA = await programs.programRow(nameA).count();
+    const countBeforeB = await programs.programRow(nameB).count();
 
-    const dialog = await openEditForProgram(page, nameB);
-    await dialog.getByLabel('Program Name').fill(nameA);
-    const patchPromise = page.waitForResponse(
+    await openEditForm(programs, nameB);
+    await programs.editProgramModal.fillProgramName(nameA);
+    const patchPromise = programs.page.waitForResponse(
       (response) =>
         response.url().includes('/api/programs') && response.request().method() === 'PATCH',
     );
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await programs.editProgramModal.clickSave();
     const patch = await patchPromise;
 
     const rejected =
       patch.status() !== 200 ||
-      (await dialog.isVisible()) ||
-      (await duplicateNameError(dialog).isVisible().catch(() => false));
+      (await programs.editProgramModal.dialog.isVisible()) ||
+      (await programs.editProgramModal.duplicateNameError.isVisible().catch(() => false));
 
     if (!rejected) {
       test.info().annotations.push({
@@ -281,121 +245,128 @@ test.describe('DS-2 — Edit existing academic program', () => {
     }
 
     expect(rejected, 'duplicate rename on edit should be rejected').toBe(true);
-    expect(await countProgramsNamed(page, nameA)).toBe(countBeforeA);
-    expect(await countProgramsNamed(page, nameB)).toBe(countBeforeB);
+    expect(await programs.programRow(nameA).count()).toBe(countBeforeA);
+    expect(await programs.programRow(nameB).count()).toBe(countBeforeB);
   });
 
   test('TC-107 — Invalid name with whitespace-only does not corrupt stored fields', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Data Analytics 2026');
     const description = 'SQL and Python focus';
-    await createProgram(page, programName, description);
+    await createProgram(programs, programName, description);
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill('   ');
-    await dialog.getByLabel('Description').fill('New description attempt');
-    await expect(dialog.getByRole('button', { name: 'Save' })).toBeDisabled();
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName('   ');
+    await programs.editProgramModal.fillDescription('New description attempt');
+    await expect(programs.editProgramModal.saveButton).toBeDisabled();
+    await programs.editProgramModal.clickCancel();
 
-    const reopened = await openEditForProgram(page, programName);
-    await expect(reopened.getByLabel('Program Name')).toHaveValue(programName);
-    await expect(reopened.getByLabel('Description')).toHaveValue(description);
+    await openEditForm(programs, programName);
+    await expect(programs.editProgramModal.programNameField).toHaveValue(programName);
+    await expect(programs.editProgramModal.descriptionField).toHaveValue(description);
   });
 
   test('TC-201 — Program Name at 100 characters saves on edit', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const long100 = `${Date.now()}${'X'.repeat(100)}`.slice(0, 100);
     expect(long100.length).toBe(100);
 
-    await createProgram(page, programName, 'Max 100 chars');
+    await createProgram(programs, programName, 'Max 100 chars');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(long100);
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(long100);
+    await saveEdit(programs);
 
-    await expectProgramInList(page, long100);
-    const reopened = await openEditForProgram(page, long100);
-    await expect(reopened.getByLabel('Program Name')).toHaveValue(long100);
+    await expect(programs.programRow(long100)).toBeVisible();
+    await openEditForm(programs, long100);
+    await expect(programs.editProgramModal.programNameField).toHaveValue(long100);
   });
 
   test('TC-202 — Program Name at 101 characters on edit (current: accepted)', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const long101 = `${Date.now()}${'Y'.repeat(101)}`.slice(0, 101);
     expect(long101.length).toBe(101);
 
-    await createProgram(page, programName, '101 char probe');
+    await createProgram(programs, programName, '101 char probe');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(long101);
-    const patchPromise = page.waitForResponse(
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(long101);
+    const patchPromise = programs.page.waitForResponse(
       (response) =>
         response.url().includes('/api/programs') && response.request().method() === 'PATCH',
     );
-    await dialog.getByRole('button', { name: 'Save' }).click();
+    await programs.editProgramModal.clickSave();
     const patch = await patchPromise;
     expect(patch.status()).toBe(200);
-    await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
-    await expectProgramInList(page, long101);
+    await expect(programs.editProgramModal.dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+    await expect(programs.programRow(long101)).toBeVisible();
   });
 
   test('TC-204 — Leading and trailing whitespace in Program Name is trimmed on save', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const trimmedUpdate = `${programName} - Updated`;
     const paddedUpdate = `  ${trimmedUpdate}  `;
-    await createProgram(page, programName, 'Whitespace edit test');
+    await createProgram(programs, programName, 'Whitespace edit test');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(paddedUpdate);
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(paddedUpdate);
+    await saveEdit(programs);
 
-    await expectProgramInList(page, trimmedUpdate);
-    await expectProgramNotInList(page, programName);
+    await expect(programs.programRow(trimmedUpdate)).toBeVisible();
+    await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
   test('TC-205 — Special characters and Unicode in Program Name persist correctly', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const unicodeName = uniqueName('Développement Web — Cohort #2 (50%)');
-    await createProgram(page, programName, 'Unicode rename test');
+    await createProgram(programs, programName, 'Unicode rename test');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(unicodeName);
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(unicodeName);
+    await saveEdit(programs);
 
-    await expectProgramInList(page, unicodeName);
-    const reopened = await openEditForProgram(page, unicodeName);
-    await expect(reopened.getByLabel('Program Name')).toHaveValue(unicodeName);
+    await expect(programs.programRow(unicodeName)).toBeVisible();
+    await openEditForm(programs, unicodeName);
+    await expect(programs.editProgramModal.programNameField).toHaveValue(unicodeName);
   });
 
   test('TC-211 — Clearing Description on edit is allowed and persists', async ({ page }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
-    await createProgram(page, programName, 'Full-stack web development program');
+    await createProgram(programs, programName, 'Full-stack web development program');
 
-    const dialog = await openEditForProgram(page, programName);
-    await expect(dialog.getByRole('button', { name: 'Save' })).toBeEnabled();
-    await dialog.getByLabel('Description').fill('');
-    await saveEditDialog(dialog);
+    await openEditForm(programs, programName);
+    await expect(programs.editProgramModal.saveButton).toBeEnabled();
+    await programs.editProgramModal.fillDescription('');
+    await saveEdit(programs);
 
-    const reopened = await openEditForProgram(page, programName);
-    await expect(reopened.getByLabel('Program Name')).toHaveValue(programName);
-    await expect(reopened.getByLabel('Description')).toHaveValue('');
+    await openEditForm(programs, programName);
+    await expect(programs.editProgramModal.programNameField).toHaveValue(programName);
+    await expect(programs.editProgramModal.descriptionField).toHaveValue('');
   });
 
   test('TC-208 — Rapid double-click Save closes modal once; documents duplicate PATCH', async ({
     page,
   }) => {
+    const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const updatedName = `${programName} - Updated`;
-    await createProgram(page, programName, 'Double save test');
+    await createProgram(programs, programName, 'Double save test');
 
-    const dialog = await openEditForProgram(page, programName);
-    await dialog.getByLabel('Program Name').fill(updatedName);
+    await openEditForm(programs, programName);
+    await programs.editProgramModal.fillProgramName(updatedName);
 
     let patchCount = 0;
     const onPatch = (response: Response) => {
@@ -403,15 +374,15 @@ test.describe('DS-2 — Edit existing academic program', () => {
         patchCount += 1;
       }
     };
-    page.on('response', onPatch);
-    await dialog.getByRole('button', { name: 'Save' }).dblclick();
-    await expect(dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
-    await page.waitForTimeout(1_000);
-    page.off('response', onPatch);
+    programs.page.on('response', onPatch);
+    await programs.editProgramModal.doubleClickSave();
+    await expect(programs.editProgramModal.dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+    await programs.page.waitForTimeout(1_000);
+    programs.page.off('response', onPatch);
 
     expect(patchCount, 'double-click currently sends duplicate PATCH requests').toBeGreaterThan(1);
-    await expect(programNameLocator(page, updatedName)).toHaveCount(1);
-    await expectProgramNotInList(page, programName);
+    await expect(programs.programRow(updatedName)).toHaveCount(1);
+    await expect(programs.programRow(programName)).toHaveCount(0);
   });
 });
 
@@ -419,8 +390,9 @@ test.describe('DS-2 — Unauthenticated access', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test('TC-105 — Unauthenticated user cannot open program edit', async ({ page }) => {
-    await page.goto(`${baseURL}/programs`);
+    const programs = programsPage(page);
+    await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/login/);
-    await expect(page.getByRole('button', { name: 'Sign In' })).toBeVisible();
+    await expect(programs.signInButton).toBeVisible();
   });
 });
