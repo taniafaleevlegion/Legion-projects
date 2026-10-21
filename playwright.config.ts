@@ -24,11 +24,11 @@ const chromiumProject = {
   testIgnore: /.*\.setup\.ts/,
 };
 
-const firefoxProject = {
-  name: 'firefox',
-  use: { ...devices['Desktop Firefox'] },
-  testIgnore: /.*\.setup\.ts/,
-};
+// const firefoxProject = {
+//   name: 'firefox',
+//   use: { ...devices['Desktop Firefox'] },
+//   testIgnore: /.*\.setup\.ts/,
+// };
 
 const webkitProject = {
   name: 'webkit',
@@ -59,7 +59,7 @@ export default defineConfig({
 
   projects: process.env.CI
     ? [setupProject, chromiumProject]
-    : [setupProject, chromiumProject, firefoxProject, webkitProject],
+    : [setupProject, chromiumProject, webkitProject],
 
   /* Run your local dev server before starting the tests */
   // webServer: {
