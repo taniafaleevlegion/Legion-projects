@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import type { Result } from 'axe-core';
 import { ProgramsPage } from '../pages/ProgramsPage';
+import { expectAxeClean } from './helpers/axeExpect';
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
 
@@ -32,7 +33,7 @@ test.describe('Programs — accessibility', () => {
   test(
     'Programs list has no axe violations',
     { tag: '@regression' },
-    async ({ page }) => {
+    async ({ page }, testInfo) => {
       test.setTimeout(90_000);
 
       const results = await new AxeBuilder({ page })
@@ -40,14 +41,18 @@ test.describe('Programs — accessibility', () => {
         .setLegacyMode()
         .analyze();
 
-      await expect(results.violations, violationSummary(results.violations)).toEqual([]);
+      await expectAxeClean(
+        results.violations,
+        violationSummary(results.violations),
+        testInfo,
+      );
     },
   );
 
   test(
     'New Program modal scoped scan with optional rule disable',
     { tag: '@regression' },
-    async ({ page }) => {
+    async ({ page }, testInfo) => {
       const programs = programsPage(page);
       await programs.openNewProgramForm();
       await expect(programs.newProgramModal.heading).toBeVisible();
@@ -58,7 +63,11 @@ test.describe('Programs — accessibility', () => {
         .disableRules('button-name')
         .analyze();
 
-      await expect(results.violations, violationSummary(results.violations)).toEqual([]);
+      await expectAxeClean(
+        results.violations,
+        violationSummary(results.violations),
+        testInfo,
+      );
     },
   );
 });
