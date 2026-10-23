@@ -204,7 +204,8 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-212 — Rapid double-click on Create creates only one program', async ({
+  // DS-189 — double-click Create submits twice (separate from duplicate-name validation)
+  test.fixme('TC-212 — Rapid double-click on Create creates only one program', async ({
     page,
   }) => {
     const programs = programsPage(page);

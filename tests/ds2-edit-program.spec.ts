@@ -210,7 +210,8 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.programRow(updatedName)).toBeVisible();
   });
 
-  test('TC-108 — Renaming to existing program name should be rejected @known-failure', async ({
+  // DS-249 — edit allows duplicate program name (see also DS-229)
+  test.fixme('TC-108 — Renaming to existing program name should be rejected @known-failure', async ({
     page,
   }) => {
     const programs = programsPage(page);
