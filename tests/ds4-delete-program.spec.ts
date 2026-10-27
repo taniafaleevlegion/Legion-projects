@@ -244,7 +244,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
       await dialog.dismiss();
     });
     await programs.deleteProgramButton(programName).dblclick();
-    await programs.page.waitForTimeout(500);
+    await expect(programs.programRow(programName)).toBeVisible({ timeout: 5_000 });
     programs.page.removeAllListeners('dialog');
 
     expect(dialogCount).toBeGreaterThanOrEqual(1);

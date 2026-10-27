@@ -1,0 +1,34 @@
+---
+description: How this project writes Playwright tests — auth, POM,
+  locators, cleanup, data.
+globs: tests/**
+alwaysApply: false
+---
+
+# Playwright Conventions
+
+Full detail lives in `.cursor/skills/` — follow these summaries in specs under `tests/`.
+
+## Auth
+
+- Default: **stored session** via `playwright.config.ts` → `storageState: playwright/.auth/user.json` (populated by `tests/auth.setup.ts`).
+- **UI login** only for login-page coverage or when auth itself is under test.
+- Unauthenticated scenarios: `test.use({ storageState: { cookies: [], origins: [] } })` and assert redirect to `/login`.
+
+## Page Objects
+
+See `pom-conventions`: one POM per page/component in `pages/`; locators as `readonly` in the constructor; **no assertions in POMs**; tests describe intent and call POM methods. **No inline locators in specs.**
+
+Locator priority: `getByRole` → `getByLabel` / `getByPlaceholder` → `getByText` → `getByTestId` (last resort, comment why).
+
+## Locators
+
+Role/label-based; never CSS selectors or XPath; never brittle partial text. Disambiguate with `.filter({ hasText })`, not `.first()`.
+
+## Data and cleanup
+
+See `api-cleanup`:
+
+- Import `test` from `fixtures/cleanup.fixture.ts`, not `@playwright/test`, when creating programs.
+- Unique names with `Date.now()` (or equivalent).
+- After create, `trackProgram(uuid)`; fixture deletes via `DELETE /api/programs/<uuid>` with `DIDAXIS_API_TOKEN` — never UI cleanup, never delete data the test did not create.
