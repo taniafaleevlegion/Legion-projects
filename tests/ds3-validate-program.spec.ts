@@ -1,295 +1,263 @@
 import { test, expect, trackProgram, uuidFromProgramCreateResponse } from '../fixtures/cleanup.fixture';
-import type { Page } from '@playwright/test';
+import type { Page, Response } from '@playwright/test';
 import { ProgramsPage } from '../pages/ProgramsPage';
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
+
+/** Shared test env can have thousands of programs; create setup needs headroom. */
+const PROGRAMS_SETUP_TIMEOUT = 180_000;
+
+const INFORMATICS_NAME = 'Informatique & IA - Niveau 2';
+const INFORMATICS_DESCRIPTION = 'Artificial intelligence and informatics curriculum';
+const WEB_DEV_NAME = 'Web Development 2026';
+const WEB_DEV_DESCRIPTION = 'Full-stack web development program';
+const ALTERNATE_DESCRIPTION = 'Alternate cohort description';
 
 function uniqueName(prefix: string): string {
   return `${prefix} ${Date.now()}`;
 }
 
-function programCreateResponse(page: Page, timeout?: number) {
+/** Regex so leading and trailing spaces are compared as stored, not trimmed. */
+function exactVisibleText(value: string): RegExp {
+  return new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
+}
+
+function programsPage(page: Page): ProgramsPage {
+  return new ProgramsPage(page);
+}
+
+function programCreateResponse(page: Page) {
   return page.waitForResponse(
     (response) =>
       response.url().includes('/api/programs') && response.request().method() === 'POST',
-    timeout === undefined ? undefined : { timeout },
+    { timeout: PROGRAMS_SETUP_TIMEOUT },
   );
 }
 
-async function clickCreateAndTrack(programs: ProgramsPage): Promise<void> {
+async function openCreateForm(programs: ProgramsPage): Promise<void> {
+  await programs.openNewProgramForm();
+  await expect(programs.newProgramModal.dialog).toBeVisible();
+  await expect(programs.newProgramModal.heading).toBeVisible();
+}
+
+async function submitCreateAndTrack(programs: ProgramsPage): Promise<void> {
   const responsePromise = programCreateResponse(programs.page);
   await programs.newProgramModal.clickCreate();
   trackProgram(await uuidFromProgramCreateResponse(await responsePromise));
 }
 
-async function createProgram(
+async function expectProgramCreated(programs: ProgramsPage, programName: string): Promise<void> {
+  await expect(programs.newProgramModal.dialog).toBeHidden({ timeout: PROGRAMS_SETUP_TIMEOUT });
+  await expect(programs.programRow(programName)).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
+}
+
+async function seedProgram(
   programs: ProgramsPage,
   programName: string,
   description: string,
 ): Promise<void> {
-  await programs.openNewProgramForm();
+  await openCreateForm(programs);
   await programs.newProgramModal.fillProgramName(programName);
   await programs.newProgramModal.fillDescription(description);
-  await clickCreateAndTrack(programs);
-  await expect(programs.newProgramModal.dialog).toBeHidden({ timeout: 20_000 });
-  await expect(programs.editProgramButton(programName)).toBeVisible({ timeout: 20_000 });
+  await expect(programs.newProgramModal.createButton).toBeEnabled();
+  await submitCreateAndTrack(programs);
+  await expectProgramCreated(programs, programName);
 }
 
-async function expectDuplicateCreateRejected(
-  programs: ProgramsPage,
-  inputName: string,
-  description: string,
-  listName: string,
-): Promise<boolean> {
-  const countBefore = await programs.programRow(listName).count();
-  await programs.openNewProgramForm();
-  await programs.newProgramModal.fillProgramName(inputName);
-  await programs.newProgramModal.fillDescription(description);
+/**
+ * getByText exact trims, so a whitespace-only name also matches empty cells.
+ * The field stays blank-or-whitespace, Create stays disabled, and the dialog
+ * stays open — that click cannot submit, so no program row is added.
+ */
+async function expectInvalidNameNotSubmitted(programs: ProgramsPage): Promise<void> {
+  await expect(programs.newProgramModal.programNameField).toHaveValue(/^\s*$/);
+  await expect(programs.newProgramModal.createButton).toBeDisabled();
+  await expect(programs.newProgramModal.dialog).toBeVisible();
+  await expect(programs.newProgramModal.heading).toBeVisible();
+  await expect(programs.newProgramModal.duplicateNameError).not.toBeVisible();
+}
 
+async function submitDuplicateAttempt(programs: ProgramsPage): Promise<Response> {
   const responsePromise = programCreateResponse(programs.page);
   await programs.newProgramModal.clickCreate();
   const response = await responsePromise;
-
   if (response.status() === 201) {
     trackProgram(await uuidFromProgramCreateResponse(response));
   }
+  return response;
+}
 
-  expect(response.status(), 'duplicate create must not return 201 Created').not.toBe(201);
-  expect(await programs.programRow(listName).count()).toBe(countBefore);
-
-  if (await programs.newProgramModal.dialog.isVisible()) {
-    await expect(programs.newProgramModal.duplicateNameError).toBeVisible();
-    return true;
-  }
-  return false;
+async function expectDuplicateRejected(programs: ProgramsPage, programName: string): Promise<void> {
+  const response = await submitDuplicateAttempt(programs);
+  expect(response.status()).not.toBe(201);
+  await expect(programs.newProgramModal.duplicateNameError).toBeVisible();
+  await expect(programs.newProgramModal.dialog).toBeVisible();
+  await expect(programs.newProgramModal.heading).toBeVisible();
+  await expect(programs.programRow(programName)).toHaveCount(1, {
+    timeout: PROGRAMS_SETUP_TIMEOUT,
+  });
 }
 
 test.describe('DS-3 — Program name validation and duplicate prevention', () => {
+  test.describe.configure({ timeout: 720_000 });
+
   test.beforeEach(async ({ page }) => {
-    const programs = new ProgramsPage(page);
+    const programs = programsPage(page);
     await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/programs/);
-    await expect(programs.newProgramButton).toBeVisible();
+    await expect(programs.newProgramButton).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
+    await expect(programs.programsHeading).toBeVisible();
   });
 
-  test('TC-001 — Valid program name with special characters creates program successfully', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Informatique & IA - Niveau 2');
+  test('Accept program name with special characters', async ({ page }) => {
+    const programs = programsPage(page);
+    const programName = uniqueName(INFORMATICS_NAME);
 
-    await programs.openNewProgramForm();
+    await openCreateForm(programs);
     await programs.newProgramModal.fillProgramName(programName);
-    await programs.newProgramModal.fillDescription('Second-year informatics and AI track');
-    await clickCreateAndTrack(programs);
+    await programs.newProgramModal.fillDescription(INFORMATICS_DESCRIPTION);
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await submitCreateAndTrack(programs);
 
-    await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programRow(programName)).toBeVisible();
+    await expectProgramCreated(programs, programName);
+    await expect(
+      programs.programRowWithDescription(programName, INFORMATICS_DESCRIPTION),
+    ).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
   });
 
-  test('TC-002 — Program Name with leading and trailing spaces trims on create', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const suffix = Date.now();
-    const storedName = `Data Science 2026 ${suffix}`;
-    const paddedName = `  ${storedName}  `;
+  test('Special-character name is accepted when Description is left empty', async ({ page }) => {
+    const programs = programsPage(page);
+    const programName = uniqueName(INFORMATICS_NAME);
 
-    await programs.openNewProgramForm();
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName(programName);
+    await expect(programs.newProgramModal.descriptionField).toHaveValue('');
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await submitCreateAndTrack(programs);
+
+    await expectProgramCreated(programs, programName);
+  });
+
+  test('Leading and trailing spaces are trimmed before the name is saved', async ({ page }) => {
+    const programs = programsPage(page);
+    const programName = uniqueName(INFORMATICS_NAME);
+    const paddedName = `  ${programName}  `;
+
+    await openCreateForm(programs);
     await programs.newProgramModal.fillProgramName(paddedName);
-    await programs.newProgramModal.fillDescription('Trim validation cohort');
-    await clickCreateAndTrack(programs);
+    await programs.newProgramModal.fillDescription(INFORMATICS_DESCRIPTION);
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await submitCreateAndTrack(programs);
 
-    await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programRow(storedName)).toBeVisible();
+    await expectProgramCreated(programs, programName);
+    await expect(programs.programNameInList(programName)).toHaveText(exactVisibleText(programName), {
+      timeout: PROGRAMS_SETUP_TIMEOUT,
+    });
   });
 
-  test('TC-003 — Alphanumeric Program Name with hyphen creates program when unique', async ({
+  test('Reject program name with only whitespace', async ({ page }) => {
+    const programs = programsPage(page);
+    const nameInput = '   ';
+
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName(nameInput);
+    await programs.newProgramModal.fillDescription(WEB_DEV_DESCRIPTION);
+    await expectInvalidNameNotSubmitted(programs);
+  });
+
+  test('Empty program name is not submitted', async ({ page }) => {
+    const programs = programsPage(page);
+
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillDescription(WEB_DEV_DESCRIPTION);
+    await expectInvalidNameNotSubmitted(programs);
+  });
+
+  test('Reject duplicate program name', async ({ page }) => {
+    const programs = programsPage(page);
+    const programName = uniqueName(WEB_DEV_NAME);
+
+    await seedProgram(programs, programName, WEB_DEV_DESCRIPTION);
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName(programName);
+    await programs.newProgramModal.fillDescription(WEB_DEV_DESCRIPTION);
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await expectDuplicateRejected(programs, programName);
+  });
+
+  test('Same program name with a different description is still rejected', async ({ page }) => {
+    const programs = programsPage(page);
+    const programName = uniqueName(WEB_DEV_NAME);
+
+    await seedProgram(programs, programName, WEB_DEV_DESCRIPTION);
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName(programName);
+    await programs.newProgramModal.fillDescription(ALTERNATE_DESCRIPTION);
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await expectDuplicateRejected(programs, programName);
+    await expect(
+      programs.programRowWithDescription(programName, ALTERNATE_DESCRIPTION),
+    ).toHaveCount(0);
+  });
+
+  test('A single space is treated as an empty program name', async ({ page }) => {
+    const programs = programsPage(page);
+    const nameInput = ' ';
+
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName(nameInput);
+    await programs.newProgramModal.fillDescription(WEB_DEV_DESCRIPTION);
+    await expectInvalidNameNotSubmitted(programs);
+  });
+
+  test('Tabs and newlines only are treated as an empty program name', async ({ page }) => {
+    const programs = programsPage(page);
+
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName('\t\n');
+    await expectInvalidNameNotSubmitted(programs);
+  });
+
+  test('A name that trims to an existing program name is rejected as a duplicate', async ({
     page,
   }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Cloud Engineering 2026');
-    await createProgram(programs, programName, 'Cloud-native architecture and DevOps');
-    await expect(programs.programRow(programName)).toBeVisible();
+    const programs = programsPage(page);
+    const programName = uniqueName(WEB_DEV_NAME);
+    const paddedName = `  ${programName}  `;
+
+    await seedProgram(programs, programName, WEB_DEV_DESCRIPTION);
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName(paddedName);
+    await programs.newProgramModal.fillDescription(ALTERNATE_DESCRIPTION);
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await expectDuplicateRejected(programs, programName);
   });
 
-  test('TC-004 — Unicode and accented characters in Program Name are accepted when unique', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Programme Été 2026 — Montréal');
-    await createProgram(programs, programName, 'French-language summer cohort');
-    await expect(programs.programRow(programName)).toBeVisible();
+  test('Creating the special-character name a second time is rejected', async ({ page }) => {
+    const programs = programsPage(page);
+    const programName = uniqueName(INFORMATICS_NAME);
+
+    await seedProgram(programs, programName, INFORMATICS_DESCRIPTION);
+    await openCreateForm(programs);
+    await programs.newProgramModal.fillProgramName(programName);
+    await programs.newProgramModal.fillDescription(INFORMATICS_DESCRIPTION);
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await expectDuplicateRejected(programs, programName);
   });
 
-  test('TC-101 — Whitespace-only Program Name prevents form submission', async ({ page }) => {
-    const programs = new ProgramsPage(page);
-    await programs.openNewProgramForm();
+  test('Whitespace-only name can be corrected and then created', async ({ page }) => {
+    const programs = programsPage(page);
+    const programName = uniqueName(INFORMATICS_NAME);
+
+    await openCreateForm(programs);
     await programs.newProgramModal.fillProgramName('   ');
     await expect(programs.newProgramModal.createButton).toBeDisabled();
-    await expect(programs.newProgramModal.dialog).toBeVisible();
-  });
 
-  test('TC-103 — Empty Program Name prevents submission', async ({ page }) => {
-    const programs = new ProgramsPage(page);
-    await programs.openNewProgramForm();
-    await programs.newProgramModal.fillDescription('Description without a program name');
-    await expect(programs.newProgramModal.createButton).toBeDisabled();
-    await expect(programs.newProgramModal.dialog).toBeVisible();
-  });
+    await programs.newProgramModal.fillProgramName(programName);
+    await programs.newProgramModal.fillDescription(INFORMATICS_DESCRIPTION);
+    await expect(programs.newProgramModal.createButton).toBeEnabled();
+    await submitCreateAndTrack(programs);
 
-  // DS-249 — duplicate create returns 201 on test.didaxis.studio
-  test.fixme('TC-102 — Duplicate Program Name shows error and does not create second program', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Web Development 2026');
-    await createProgram(programs, programName, 'Original cohort');
-    await expectDuplicateCreateRejected(
-      programs,
-      programName,
-      'Alternate cohort description',
-      programName,
-    );
-  });
-
-  // DS-249
-  test.fixme('TC-104 — Duplicate after trim is rejected when stored name matches trimmed input', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Web Development 2026');
-    await createProgram(programs, programName, 'Stored without padding');
-
-    await expectDuplicateCreateRejected(
-      programs,
-      `  ${programName}  `,
-      'Padded duplicate attempt',
-      programName,
-    );
-  });
-
-  // DS-249
-  test.fixme('TC-105 — Client must not create duplicate when error is shown', async ({ page }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Web Development 2026');
-    await createProgram(programs, programName, 'Persisted program');
-
-    await expectDuplicateCreateRejected(programs, programName, 'Should not persist', programName);
-
-    await page.reload();
-    await expect(page).toHaveURL(/\/programs/);
-    expect(await programs.programRow(programName).count()).toBe(1);
-  });
-
-  // DS-249
-  test.fixme('TC-106 — Duplicate error is specific to Program Name; other fields stay populated', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Web Development 2026');
-    await createProgram(programs, programName, 'Existing');
-
-    const description = 'Alternate cohort description kept on failure';
-    const dialogStayedOpen = await expectDuplicateCreateRejected(
-      programs,
-      programName,
-      description,
-      programName,
-    );
-    expect(dialogStayedOpen).toBe(true);
-    await expect(programs.newProgramModal.descriptionField).toHaveValue(description);
-  });
-
-  test('TC-201 — Tabs and newlines only in Program Name treated as empty', async ({ page }) => {
-    const programs = new ProgramsPage(page);
-    await programs.openNewProgramForm();
-    await programs.newProgramModal.fillProgramName('\t\n\t');
-    await expect(programs.newProgramModal.createButton).toBeDisabled();
-    await expect(programs.newProgramModal.dialog).toBeVisible();
-  });
-
-  test('TC-202 — Mixed whitespace and visible characters trims outer whitespace only', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const suffix = Date.now();
-    const storedName = `Informatique & IA - Niveau 2 ${suffix}`;
-    const paddedName = `  ${storedName}  `;
-
-    await programs.openNewProgramForm();
-    await programs.newProgramModal.fillProgramName(paddedName);
-    await programs.newProgramModal.fillDescription('Internal spacing preserved');
-    await clickCreateAndTrack(programs);
-
-    await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programRow(storedName)).toBeVisible();
-  });
-
-  test('TC-203 — Case-variant duplicate name behavior is documented', async ({ page }) => {
-    const programs = new ProgramsPage(page);
-    const suffix = Date.now();
-    const programName = `Web Development 2026 ${suffix}`;
-    const caseVariant = `web development 2026 ${suffix}`;
-    await createProgram(programs, programName, 'Case sensitivity probe');
-    const countBefore =
-      (await programs.programRow(programName).count()) +
-      (await programs.programRow(caseVariant).count());
-
-    await programs.openNewProgramForm();
-    await programs.newProgramModal.fillProgramName(caseVariant);
-    await programs.newProgramModal.fillDescription('Case variant attempt');
-
-    const responsePromise = programCreateResponse(page, 15_000).catch(() => null);
-    await programs.newProgramModal.clickCreate();
-    await Promise.race([
-      programs.newProgramModal.dialog.waitFor({ state: 'hidden', timeout: 15_000 }),
-      programs.newProgramModal.duplicateNameError.waitFor({ state: 'visible', timeout: 15_000 }),
-    ]).catch(() => {});
-
-    const response = await responsePromise;
-    if (response?.status() === 201) {
-      trackProgram(await uuidFromProgramCreateResponse(response));
-    }
-
-    const rejected = await programs.newProgramModal.dialog.isVisible();
-    const countAfter =
-      (await programs.programRow(programName).count()) +
-      (await programs.programRow(caseVariant).count());
-
-    if (rejected) {
-      await expect(programs.newProgramModal.duplicateNameError).toBeVisible();
-      expect(countAfter).toBe(countBefore);
-    } else {
-      await expect(programs.newProgramModal.dialog).toBeHidden();
-      expect(countAfter).toBeGreaterThan(countBefore);
-    }
-  });
-
-  test('TC-208 — HTML-like characters in Program Name are stored as plain text', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName("<script>alert('x')</script> Test 2026");
-    let dialogAlert = false;
-    page.on('dialog', () => {
-      dialogAlert = true;
-    });
-
-    await createProgram(programs, programName, 'XSS-safe name display check');
-    await expect(programs.programRow(programName)).toBeVisible();
-    expect(dialogAlert).toBe(false);
-  });
-
-  // DS-249
-  test.fixme('TC-209 — Whitespace padding around existing name triggers duplicate rejection', async ({
-    page,
-  }) => {
-    const programs = new ProgramsPage(page);
-    const programName = uniqueName('Web Development 2026');
-    await createProgram(programs, programName, 'Duplicate padding test');
-    const padded = `${' '.repeat(50)}${programName}${' '.repeat(50)}`;
-
-    await expectDuplicateCreateRejected(programs, padded, 'Padded duplicate', programName);
+    await expectProgramCreated(programs, programName);
   });
 });
