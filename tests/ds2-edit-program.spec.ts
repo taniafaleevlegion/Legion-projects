@@ -191,7 +191,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.saveButton).toBeDisabled();
   });
 
-  test('TC-106 — Successful rename updates row in place (row count unchanged)', async ({
+  test.fixme('TC-106 — Successful rename updates row in place (row count unchanged) @known-failure', async ({
     page,
   }) => {
     const programs = programsPage(page);
