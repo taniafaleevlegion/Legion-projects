@@ -1,5 +1,6 @@
 import { test, expect, trackProgram, uuidFromProgramCreateResponse } from '../fixtures/cleanup.fixture';
 import type { Page, Response } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { ProgramsPage } from '../pages/ProgramsPage';
 
 const baseURL = process.env.DIDAXIS_URL ?? 'https://test.didaxis.studio';
@@ -96,6 +97,19 @@ async function expectDuplicateRejected(programs: ProgramsPage, programName: stri
   await expect(programs.programRow(programName)).toHaveCount(1, {
     timeout: PROGRAMS_SETUP_TIMEOUT,
   });
+}
+
+async function moveToCreateWithKeyboard(programs: ProgramsPage): Promise<void> {
+  const createButton = programs.newProgramModal.createButton;
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await programs.page.keyboard.press('Tab');
+    const focused = await createButton.evaluate(
+      (element) => element === document.activeElement,
+    );
+    if (focused) {
+      return;
+    }
+  }
 }
 
 test.describe('DS-3 — Program name validation and duplicate prevention', () => {
@@ -264,4 +278,48 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
 
     await expectProgramCreated(programs, programName);
   });
+
+  test.fixme(
+    'New Program dialog has no axe violations after a whitespace-only Program Name @known-failure',
+    { tag: '@a11y' },
+    async ({ page }) => {
+      const programs = programsPage(page);
+      await openCreateForm(programs);
+      await programs.newProgramModal.fillProgramName('   ');
+      await expect(programs.newProgramModal.programNameField).toHaveValue('   ');
+      await expect(programs.newProgramModal.createButton).toBeDisabled();
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa'])
+        .include(programs.newProgramModal.axeIncludeSelector)
+        .analyze();
+
+      await expect(results.violations).toEqual([]);
+    },
+  );
+
+  test(
+    'Keyboard creates a special-character program name',
+    { tag: '@a11y' },
+    async ({ page }) => {
+      const programs = programsPage(page);
+      const programName = uniqueName(INFORMATICS_NAME);
+
+      await openCreateForm(programs);
+      await programs.newProgramModal.programNameField.focus();
+      await expect(programs.newProgramModal.programNameField).toBeFocused();
+      await page.keyboard.type(programName);
+      await expect(programs.newProgramModal.programNameField).toHaveValue(programName);
+      await expect(programs.newProgramModal.createButton).toBeEnabled();
+
+      await moveToCreateWithKeyboard(programs);
+      await expect(programs.newProgramModal.createButton).toBeFocused();
+
+      const responsePromise = programCreateResponse(page);
+      await page.keyboard.press('Enter');
+      trackProgram(await uuidFromProgramCreateResponse(await responsePromise));
+
+      await expectProgramCreated(programs, programName);
+    },
+  );
 });
