@@ -48,13 +48,14 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI
     ? [['html'], ['github']]
     : 'list',
   use: {
     baseURL: process.env.DIDAXIS_URL,
     trace: 'on-first-retry',
+    locale: 'en-CA',
+    timezoneId: 'America/Toronto',
   },
 
   projects: process.env.CI

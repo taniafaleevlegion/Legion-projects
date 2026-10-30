@@ -35,3 +35,11 @@ You coordinate the QA subagents. Do the analysis yourself (apply the
 
 - A human approves any merge and any filed bug.
 - **Done** when the suite is green for the ticket, or a bug is filed and linked to the story.
+
+## Guardrails
+
+- A human approves every merge and every filed bug.
+- No subagent edits application source.
+- **test-writer**: writes Playwright specs only under `tests/`.
+- **triage**: read-only diagnosis of a red run; never edits, merges, or fixes.
+- **bug-reporter**: files one Jira bug after a human confirms a real app bug; touches no repo files.
