@@ -1,13 +1,21 @@
 ---
-description: How to drive a QA ticket or a red build to done by
-  delegating to the test-writer, triage, and bug-reporter subagents.
+description: How to drive a QA ticket, a coverage gap, or a backlog
+  queue to done by delegating to the test-writer, triage, and bug-reporter
+  subagents.
 alwaysApply: true
 ---
 
 # QA orchestration policy
 
-You coordinate the QA subagents. Do the analysis yourself (apply the
-`jira-ticket-to-gherkin` skill to turn a ticket into a plan); delegate the rest.
+You coordinate the QA subagents. Do the analysis yourself; delegate the rest.
+Work one ticket unless Backlog mode is running.
+
+## Skills
+
+| Skill | When |
+|-------|------|
+| `jira-ticket-to-gherkin` | A Jira ticket exists (`DS-1`, `DS-2`, …). Turn its acceptance criteria into a Gherkin plan. |
+| `explore-and-generate` | There is no ticket, and the user says "find what we're not testing", "explore <page> for untested flows", or "expand coverage". Read `tests/`, crawl the live UI, and write one Gherkin plan for the highest-value uncovered flow. Read-only. Do not use it when a ticket already exists. |
 
 ## Ticket → plan (you)
 
@@ -25,16 +33,34 @@ You coordinate the QA subagents. Do the analysis yourself (apply the
 | Run is red | Delegate to **triage** |
 | Real app bug (human confirmed) | Delegate to **bug-reporter** |
 | Test issue | Delegate to **test-writer** (propose a fix; human OKs) |
+| "find what we're not testing", "explore <page> for untested flows", or "expand coverage", and no ticket | Apply **explore-and-generate** |
+| Backlog run started by a Cursor Automation, a headless `agent -p` run, or a local batch | **Backlog mode** |
+
+## Backlog mode
+
+Work a queue instead of one ticket. The agent never decides when to start. A run begins only when it is wired around the agent: a Cursor Automation, a headless `agent -p` run, or a local batch.
+
+**Queue:** all DS tickets in status "In Progress" that do not already have the "tests-generated" label.
+
+**Budget:** at most 5 tickets per run.
+
+**Per ticket:** analyze → **test-writer** → `npx playwright test` → **triage** on red.
+
+**Output:** one PR per ticket. Link the ticket. Add the "tests-generated" label so the next run skips it.
+
+Stop on a repeated identical failure and move on. Never merge or close without a human.
 
 ## Loop guard
 
 - At most **3 delegations** per task.
 - Never re-run the **same failing spec** more than **twice** — then stop and ask.
+- In Backlog mode, a repeated identical failure stops that ticket. Move on to the next ticket in the queue.
 
 ## Approval and done
 
 - A human approves any merge and any filed bug.
-- **Done** when the suite is green for the ticket, or a bug is filed and linked to the story.
+- Never merge a PR or close a ticket without a human.
+- **Done** when the suite is green for the ticket, or a bug is filed and linked to the story. In Backlog mode, done for a ticket also means its PR is open, the ticket is linked, and it has the "tests-generated" label.
 
 ## Guardrails
 
