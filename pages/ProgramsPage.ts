@@ -3,11 +3,14 @@ import { EditProgramModal } from './EditProgramModal';
 import { NewProgramModal } from './NewProgramModal';
 
 const emptyStatePattern = /no programs|no program has been|create your first|get started by creating/i;
+const emptyStateCopy = 'No programs yet. Create your first program to get started.';
 
 export class ProgramsPage {
   readonly page: Page;
   readonly main: Locator;
   readonly newProgramButton: Locator;
+  readonly createProgramButton: Locator;
+  readonly emptyStateCopy: Locator;
   readonly programsHeading: Locator;
   readonly signInButton: Locator;
   readonly newProgramModal: NewProgramModal;
@@ -17,6 +20,10 @@ export class ProgramsPage {
     this.page = page;
     this.main = page.getByRole('main');
     this.newProgramButton = page.getByRole('button', { name: /New Program/i });
+    this.createProgramButton = page
+      .getByRole('button', { name: 'Create Program', exact: true })
+      .or(page.getByRole('link', { name: 'Create Program', exact: true }));
+    this.emptyStateCopy = this.main.getByText(emptyStateCopy, { exact: true });
     this.programsHeading = page.getByRole('heading', { name: 'Programs' });
     this.signInButton = page.getByRole('button', { name: 'Sign In' });
     this.newProgramModal = new NewProgramModal(page);
@@ -63,6 +70,10 @@ export class ProgramsPage {
 
   async openNewProgramForm(): Promise<void> {
     await this.newProgramButton.click();
+  }
+
+  async openCreateProgramFromEmptyState(): Promise<void> {
+    await this.createProgramButton.click();
   }
 
   async openEditProgram(programName: string): Promise<void> {
