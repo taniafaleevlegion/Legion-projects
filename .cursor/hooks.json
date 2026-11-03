@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "node .cursor/hooks/generation-gate.mjs",
+        "matcher": "Write",
+        "failClosed": true
+      }
+    ]
+  }
+}
