@@ -8,7 +8,11 @@ export class ProgramsPage {
   readonly page: Page;
   readonly main: Locator;
   readonly newProgramButton: Locator;
+  /** Empty-state CTA (distinct from header "+ New Program"). */
+  readonly createFirstProgramButton: Locator;
   readonly programsHeading: Locator;
+  readonly pageSubtitle: Locator;
+  readonly programColumnHeader: Locator;
   readonly signInButton: Locator;
   readonly newProgramModal: NewProgramModal;
   readonly editProgramModal: EditProgramModal;
@@ -17,7 +21,12 @@ export class ProgramsPage {
     this.page = page;
     this.main = page.getByRole('main');
     this.newProgramButton = page.getByRole('button', { name: /New Program/i });
+    this.createFirstProgramButton = page.getByRole('button', { name: /Create Program/i });
     this.programsHeading = page.getByRole('heading', { name: 'Programs' });
+    this.pageSubtitle = this.main.getByText('Manage academic programs and semesters', {
+      exact: true,
+    });
+    this.programColumnHeader = this.main.getByRole('columnheader', { name: 'Program' });
     this.signInButton = page.getByRole('button', { name: 'Sign In' });
     this.newProgramModal = new NewProgramModal(page);
     this.editProgramModal = new EditProgramModal(page);
