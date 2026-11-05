@@ -2,6 +2,8 @@ import type { Locator, Page } from '@playwright/test';
 
 export class EditProgramModal {
   readonly dialog: Locator;
+  /** Matches `dialog`; axe `.include()` requires a CSS selector. */
+  readonly axeIncludeSelector = '[role="dialog"]';
   readonly heading: Locator;
   readonly programNameField: Locator;
   readonly descriptionField: Locator;
