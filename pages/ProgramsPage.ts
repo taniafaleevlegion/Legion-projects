@@ -8,6 +8,8 @@ export class ProgramsPage {
   readonly page: Page;
   readonly main: Locator;
   readonly newProgramButton: Locator;
+  /** Empty-state CTA. Distinct from the header "+ New Program" button. */
+  readonly createProgramPrompt: Locator;
   readonly programsHeading: Locator;
   readonly signInButton: Locator;
   readonly newProgramModal: NewProgramModal;
@@ -17,6 +19,7 @@ export class ProgramsPage {
     this.page = page;
     this.main = page.getByRole('main');
     this.newProgramButton = page.getByRole('button', { name: /New Program/i });
+    this.createProgramPrompt = page.getByRole('button', { name: 'Create Program' });
     this.programsHeading = page.getByRole('heading', { name: 'Programs' });
     this.signInButton = page.getByRole('button', { name: 'Sign In' });
     this.newProgramModal = new NewProgramModal(page);
@@ -53,6 +56,11 @@ export class ProgramsPage {
     return this.main.getByText(emptyStatePattern);
   }
 
+  /** Exact empty-state copy rendered when GET /api/programs returns `{ data: [] }`. */
+  emptyStateCopy(): Locator {
+    return this.main.getByText('No programs yet. Create your first program to get started.');
+  }
+
   tableRows(): Locator {
     return this.main.getByRole('row');
   }
@@ -63,6 +71,10 @@ export class ProgramsPage {
 
   async openNewProgramForm(): Promise<void> {
     await this.newProgramButton.click();
+  }
+
+  async openCreateProgramPrompt(): Promise<void> {
+    await this.createProgramPrompt.click();
   }
 
   async openEditProgram(programName: string): Promise<void> {
