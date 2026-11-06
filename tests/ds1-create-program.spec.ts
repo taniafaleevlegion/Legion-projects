@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { test, expect, trackProgram, uuidFromProgramCreateResponse } from '../fixtures/cleanup.fixture';
 import type { Page, Response } from '@playwright/test';
 import { ProgramsPage } from '../pages/ProgramsPage';
@@ -26,22 +27,29 @@ async function submitCreateAndTrack(programs: ProgramsPage): Promise<void> {
 }
 
 async function submitCreateDblClickAndTrack(programs: ProgramsPage): Promise<void> {
-  const seenResponses = new WeakSet<Response>();
-  const onCreate = async (response: Response) => {
-    if (seenResponses.has(response)) {
+  const tracked: Promise<void>[] = [];
+  const onCreate = (response: Response) => {
+    if (
+      !response.url().includes('/api/programs') ||
+      response.request().method() !== 'POST' ||
+      response.status() !== 201
+    ) {
       return;
     }
-    if (response.request().method() !== 'POST' || response.status() !== 201) {
-      return;
-    }
-    seenResponses.add(response);
-    trackProgram(await uuidFromProgramCreateResponse(response));
+    tracked.push(
+      uuidFromProgramCreateResponse(response).then((uuid) => {
+        trackProgram(uuid);
+      }),
+    );
   };
   programs.page.on('response', onCreate);
-  await programs.newProgramModal.doubleClickCreate();
-  await expect(programs.newProgramModal.dialog).toBeHidden({ timeout: 20_000 });
-  await programs.page.waitForTimeout(500);
-  programs.page.off('response', onCreate);
+  try {
+    await programs.newProgramModal.doubleClickCreate();
+    await expect(programs.newProgramModal.dialog).toBeHidden({ timeout: 20_000 });
+    await Promise.all(tracked);
+  } finally {
+    programs.page.off('response', onCreate);
+  }
 }
 
 test.describe('DS-1 — Create new academic program', () => {
@@ -52,15 +60,22 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramButton).toBeVisible();
   });
 
-  test('TC-001 — Admin opens program creation form with required fields', async ({
+  // AC1 — Navigate to program creation form
+  test('AC1 — Admin opens New Program form with Program Name and Description', async ({
     page,
   }) => {
     const programs = programsPage(page);
     await programs.openNewProgramForm();
+
+    await expect(programs.newProgramModal.dialog).toBeVisible();
+    await expect(programs.newProgramModal.heading).toBeVisible();
+    await expect(programs.newProgramModal.programNameField).toBeVisible();
+    await expect(programs.newProgramModal.descriptionField).toBeVisible();
     await expect(programs.newProgramModal.createButton).toBeVisible();
   });
 
-  test('TC-002 — Admin creates program with name and description; list updates', async ({
+  // AC2 — Successfully create a program
+  test('AC2 — Admin creates program with name and description; list updates', async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -74,18 +89,51 @@ test.describe('DS-1 — Create new academic program', () => {
 
     await expect(programs.newProgramModal.dialog).toBeHidden();
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
+    await expect(programs.programRowWithDescription(programName, description)).toBeVisible();
   });
 
-  test('TC-003 — Create button disabled when Program Name is empty', async ({ page }) => {
+  // AC3 — Validation prevents empty program name
+  test('AC3 — Create button disabled when Program Name is empty', async ({ page }) => {
     const programs = programsPage(page);
     await programs.openNewProgramForm();
-    await programs.newProgramModal.fillDescription('Any description');
+    await programs.newProgramModal.fillDescription('Full-stack web development program');
     await expect(programs.newProgramModal.createButton).toBeDisabled();
   });
 
-  test('TC-004 — Admin creates program with name only (Description empty)', async ({
+  // Accessibility — scoped axe on New Program dialog (a11y-checks).
+  // Keyboard: Enter opens the dialog here. programs.a11y.spec.ts covers page/modal axe
+  // scans but does not currently cover the Enter-to-open keyboard path.
+  // Known failure: Mantine dialog close control can lack an accessible name — do not
+  // .disableRules(); keep under fixme until the control is named (same as DS-258/DS-3).
+  test.fixme(
+    'New Program dialog has no axe violations (wcag2a/wcag2aa) @known-failure',
+    { tag: '@a11y' },
+    async ({ page }) => {
+      const programs = programsPage(page);
+      await programs.openNewProgramForm();
+      await expect(programs.newProgramModal.heading).toBeVisible();
+
+      const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa'])
+        .include(programs.newProgramModal.axeIncludeSelector)
+        .analyze();
+
+      await expect(results.violations).toEqual([]);
+    },
+  );
+
+  test('Keyboard — Enter on + New Program opens the New Program dialog', { tag: '@a11y' }, async ({
     page,
   }) => {
+    const programs = programsPage(page);
+    await programs.newProgramButton.focus();
+    await expect(programs.newProgramButton).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(programs.newProgramModal.dialog).toBeVisible();
+    await expect(programs.newProgramModal.heading).toBeVisible();
+  });
+
+  test('Admin creates program with name only (Description empty)', async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Data Science Fundamentals');
 
@@ -98,7 +146,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-005 — Admin cancels creation; no new program in list', async ({ page }) => {
+  test('Admin cancels creation; no new program in list', async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Temporary Program Name');
 
@@ -111,9 +159,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-006 — New program appears in list without full page reload', async ({
-    page,
-  }) => {
+  test('New program appears in list without full page reload', async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Cloud Computing 2026');
     const programsUrl = page.url();
@@ -128,9 +174,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-102 — Empty Program Name cannot result in a saved program', async ({
-    page,
-  }) => {
+  test('Empty Program Name cannot result in a saved program', async ({ page }) => {
     const programs = programsPage(page);
     await programs.openNewProgramForm();
     await expect(programs.newProgramModal.createButton).toBeDisabled();
@@ -138,9 +182,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramModal.dialog).toBeHidden();
   });
 
-  test('TC-103 — Create remains disabled after clearing a previously entered name', async ({
-    page,
-  }) => {
+  test('Create remains disabled after clearing a previously entered name', async ({ page }) => {
     const programs = programsPage(page);
     await programs.openNewProgramForm();
 
@@ -150,24 +192,23 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramModal.createButton).toBeDisabled();
   });
 
-  test.fixme('TC-201 — Program Name at minimum valid length (single character) @known-failure', async ({
-    page,
-  }) => {
-    const programs = programsPage(page);
-    const programName = String.fromCharCode(65 + (Date.now() % 26));
+  test.fixme(
+    'Program Name at minimum valid length (single character) @known-failure',
+    async ({ page }) => {
+      const programs = programsPage(page);
+      const programName = String.fromCharCode(65 + (Date.now() % 26));
 
-    await programs.openNewProgramForm();
-    await programs.newProgramModal.fillProgramName(programName);
-    await programs.newProgramModal.fillDescription('Single-letter name test');
-    await submitCreateAndTrack(programs);
+      await programs.openNewProgramForm();
+      await programs.newProgramModal.fillProgramName(programName);
+      await programs.newProgramModal.fillDescription('Single-letter name test');
+      await submitCreateAndTrack(programs);
 
-    await expect(programs.newProgramModal.dialog).toBeHidden();
-    await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
-  });
+      await expect(programs.newProgramModal.dialog).toBeHidden();
+      await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
+    },
+  );
 
-  test('TC-204 — Program Name with leading and trailing whitespace is trimmed', async ({
-    page,
-  }) => {
+  test('Program Name with leading and trailing whitespace is trimmed', async ({ page }) => {
     const programs = programsPage(page);
     const suffix = Date.now();
     const storedName = `Web Development ${suffix}`;
@@ -182,16 +223,14 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(storedName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-205 — Program Name containing only whitespace cannot be created', async ({
-    page,
-  }) => {
+  test('Program Name containing only whitespace cannot be created', async ({ page }) => {
     const programs = programsPage(page);
     await programs.openNewProgramForm();
     await programs.newProgramModal.fillProgramName('   ');
     await expect(programs.newProgramModal.createButton).toBeDisabled();
   });
 
-  test('TC-206 — Special characters and Unicode in Program Name', async ({ page }) => {
+  test('Special characters and Unicode in Program Name', async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Développement Web — 2026 (Phase 1)');
 
@@ -205,9 +244,7 @@ test.describe('DS-1 — Create new academic program', () => {
   });
 
   // DS-189 — double-click Create submits twice (separate from duplicate-name validation)
-  test.fixme('TC-212 — Rapid double-click on Create creates only one program', async ({
-    page,
-  }) => {
+  test.fixme('Rapid double-click on Create creates only one program', async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Double Submit Program');
 
@@ -223,7 +260,7 @@ test.describe('DS-1 — Create new academic program', () => {
 test.describe('DS-1 — Unauthenticated access', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('TC-105 — Unauthenticated user cannot reach program creation', async ({ page }) => {
+  test('Unauthenticated user cannot reach program creation', async ({ page }) => {
     const programs = programsPage(page);
     await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/login/);
