@@ -1,7 +1,7 @@
 ---
-description: How to drive a QA ticket, a coverage gap, or a backlog
+description: How to drive a QA ticket, a coverage gap, a red run, or a backlog
   queue to done by delegating to the test-writer, triage, and bug-reporter
-  subagents.
+  subagents, and by applying self-heal on locator drift.
 alwaysApply: true
 ---
 
@@ -16,6 +16,7 @@ Work one ticket unless Backlog mode is running.
 |-------|------|
 | `jira-ticket-to-gherkin` | A Jira ticket exists (`DS-1`, `DS-2`, …). Turn its acceptance criteria into a Gherkin plan. |
 | `explore-and-generate` | There is no ticket, and the user says "find what we're not testing", "explore <page> for untested flows", or "expand coverage". Read `tests/`, crawl the live UI, and write one Gherkin plan for the highest-value uncovered flow. Read-only. Do not use it when a ticket already exists. |
+| `self-heal` | Triage classified the red run as drift (a test issue). Follow `.cursor/skills/self-heal/SKILL.md`. Never for a real app bug. |
 
 ## Ticket → plan (you)
 
@@ -30,11 +31,23 @@ Work one ticket unless Backlog mode is running.
 | Ticket given | Analyze → produce a test plan |
 | Plan ready (QA approved) | Delegate to **test-writer** |
 | Spec returned | Run: `npx playwright test` (scoped to the ticket spec when possible) |
-| Run is red | Delegate to **triage** |
-| Real app bug (human confirmed) | Delegate to **bug-reporter** |
-| Test issue | Delegate to **test-writer** (propose a fix; human OKs) |
+| Run is red | Delegate to **triage** to classify, then follow **Heal on red** |
+| Drift (test issue) | Apply **self-heal**, then open a repair PR linked to the run |
+| Real app bug | Delegate to **bug-reporter** to file and link it. Never heal a bug. |
+| Test issue that is not drift | Delegate to **test-writer** (propose a fix; human OKs) |
 | "find what we're not testing", "explore <page> for untested flows", or "expand coverage", and no ticket | Apply **explore-and-generate** |
 | Backlog run started by a Cursor Automation, a headless `agent -p` run, or a local batch | **Backlog mode** |
+
+## Heal on red
+
+On a red run, delegate to **triage** to classify.
+
+- **Drift (test issue):** apply **self-heal**. Re-discover the element via the Agent-Browser, patch the POM, and re-run to prove green with assertions unchanged. Then open a repair PR linked to the run.
+- **Real app bug:** delegate to **bug-reporter** to file and link it. Never heal a bug.
+
+**Budget:** at most 5 heals per run. Each heal is one locator.
+
+Stop and escalate if a heal won't prove green. Never heal an assertion. Never merge a repair without a human.
 
 ## Backlog mode
 
@@ -44,7 +57,7 @@ Work a queue instead of one ticket. The agent never decides when to start. A run
 
 **Budget:** at most 5 tickets per run.
 
-**Per ticket:** analyze → **test-writer** → `npx playwright test` → **triage** on red.
+**Per ticket:** analyze → **test-writer** → `npx playwright test` → on red, follow **Heal on red**.
 
 **Output:** one PR per ticket. Link the ticket. Add the "tests-generated" label so the next run skips it.
 
@@ -69,3 +82,4 @@ Stop on a repeated identical failure and move on. Never merge or close without a
 - **test-writer**: writes Playwright specs only under `tests/`.
 - **triage**: read-only diagnosis of a red run; never edits, merges, or fixes.
 - **bug-reporter**: files one Jira bug after a human confirms a real app bug; touches no repo files.
+- **self-heal**: patches one drifted POM locator. Never heal an assertion. Never heal a real app bug. Never merge a repair without a human.
