@@ -123,7 +123,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expect(programs.programsHeading).toBeVisible();
   });
 
-  test('Accept program name with special characters', async ({ page }) => {
+  test('Accept program name with special characters', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(INFORMATICS_NAME);
 
@@ -139,7 +139,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     ).toBeVisible({ timeout: PROGRAMS_SETUP_TIMEOUT });
   });
 
-  test('Special-character name is accepted when Description is left empty', async ({ page }) => {
+  test('Special-character name is accepted when Description is left empty', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(INFORMATICS_NAME);
 
@@ -152,7 +152,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectProgramCreated(programs, programName);
   });
 
-  test('Leading and trailing spaces are trimmed before the name is saved', async ({ page }) => {
+  test('Leading and trailing spaces are trimmed before the name is saved', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(INFORMATICS_NAME);
     const paddedName = `  ${programName}  `;
@@ -169,7 +169,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     });
   });
 
-  test('Reject program name with only whitespace', async ({ page }) => {
+  test('Reject program name with only whitespace', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const nameInput = '   ';
 
@@ -179,7 +179,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectInvalidNameNotSubmitted(programs);
   });
 
-  test('Empty program name is not submitted', async ({ page }) => {
+  test('Empty program name is not submitted', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
 
     await openCreateForm(programs);
@@ -187,7 +187,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectInvalidNameNotSubmitted(programs);
   });
 
-  test.fixme('Reject duplicate program name @known-failure', async ({ page }) => {
+  test.fixme('Reject duplicate program name @known-failure', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(WEB_DEV_NAME);
 
@@ -199,7 +199,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectDuplicateRejected(programs, programName);
   });
 
-  test.fixme('Same program name with a different description is still rejected @known-failure', async ({
+  test.fixme('Same program name with a different description is still rejected @known-failure', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -216,7 +216,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     ).toHaveCount(0);
   });
 
-  test('A single space is treated as an empty program name', async ({ page }) => {
+  test('A single space is treated as an empty program name', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const nameInput = ' ';
 
@@ -226,7 +226,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectInvalidNameNotSubmitted(programs);
   });
 
-  test('Tabs and newlines only are treated as an empty program name', async ({ page }) => {
+  test('Tabs and newlines only are treated as an empty program name', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
 
     await openCreateForm(programs);
@@ -234,7 +234,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectInvalidNameNotSubmitted(programs);
   });
 
-  test.fixme('A name that trims to an existing program name is rejected as a duplicate @known-failure', async ({
+  test.fixme('A name that trims to an existing program name is rejected as a duplicate @known-failure', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -249,7 +249,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectDuplicateRejected(programs, programName);
   });
 
-  test.fixme('Creating the special-character name a second time is rejected @known-failure', async ({
+  test.fixme('Creating the special-character name a second time is rejected @known-failure', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -263,7 +263,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
     await expectDuplicateRejected(programs, programName);
   });
 
-  test('Whitespace-only name can be corrected and then created', async ({ page }) => {
+  test('Whitespace-only name can be corrected and then created', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(INFORMATICS_NAME);
 
@@ -281,7 +281,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
 
   test.fixme(
     'New Program dialog has no axe violations after a whitespace-only Program Name @known-failure',
-    { tag: '@a11y' },
+    { tag: '@regression' },
     async ({ page }) => {
       const programs = programsPage(page);
       await openCreateForm(programs);
@@ -300,7 +300,7 @@ test.describe('DS-3 — Program name validation and duplicate prevention', () =>
 
   test(
     'Keyboard creates a special-character program name',
-    { tag: '@a11y' },
+    { tag: '@regression' },
     async ({ page }) => {
       const programs = programsPage(page);
       const programName = uniqueName(INFORMATICS_NAME);

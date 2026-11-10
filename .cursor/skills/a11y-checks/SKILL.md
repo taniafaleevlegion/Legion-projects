@@ -57,7 +57,7 @@ Add (or keep) both in `tests/programs.a11y.spec.ts` (or equivalent):
 1. Axe scan of the Programs page with `withTags(['wcag2a','wcag2aa'])`.
 2. Keyboard: tab → primary control focused → Enter → New Program dialog open.
 
-**One tag per test.** Drive all interaction through existing POMs.
+**One strategy tag per test**, usually `@regression`. Do not add `@a11y`. `AxeBuilder.withTags` is the axe ruleset, not the Playwright tag. Drive all interaction through existing POMs.
 
 ## Violations — never silence to go green
 
@@ -79,7 +79,7 @@ Generating:
 - [ ] `AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze()`
 - [ ] `await expect(results.violations).toEqual([])`
 - [ ] Keyboard path with `toBeFocused()` + Enter opens dialog (where applicable)
-- [ ] POMs only; one tag per test
+- [ ] POMs only; one strategy tag, usually `@regression` (not `@a11y`)
 - [ ] No `.disableRules()` — real violations reported and work stopped
 
 Reviewing:

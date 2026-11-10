@@ -110,12 +110,51 @@ Why: A UI login in every test fails the suite when the login form is slow, and i
 
 ## 5. Test data
 
-Unique names with `Date.now()`. Every test that creates a program calls `trackProgram(uuid)` and the fixture deletes it.
+Happy-path records come from Faker factories in `test-data/factories/`. Invalid values are curated lists in static `.ts` files under `test-data/`, not random strings. Secrets and base URLs come from `process.env`. Repeated paths and UI copy live in enums.
 
-✅ Good (`tests/ds1-create-program.spec.ts`)
+A factory still appends `Date.now()` so parallel workers do not collide. Every test that creates a program calls `trackProgram(uuid)`. The cleanup fixture deletes that row after the test. That is the revert for the test's own data, and the test keeps its importance or lane tag.
+
+✅ Good (`test-data/factories/program.ts` — advised; no spec imports it yet)
 
 ```ts
-return `${prefix} ${Date.now()}`;
+import { faker } from '@faker-js/faker';
+
+export type ProgramDraft = {
+  name: string;
+  description: string;
+};
+
+/** Happy-path program. The timestamp keeps the name unique under fullyParallel. */
+export function buildProgram(overrides: Partial<ProgramDraft> = {}): ProgramDraft {
+  return {
+    name: `${faker.company.catchPhrase()} ${Date.now()}`,
+    description: faker.lorem.sentence(),
+    ...overrides,
+  };
+}
+```
+
+✅ Good (static invalid set, env, enum)
+
+```ts
+export const invalidProgramNames = ['', '   ', '\t', '\n'] as const;
+
+const baseURL = process.env.DIDAXIS_URL;
+const email = process.env.DIDAXIS_EMAIL;
+
+export enum AppPath {
+  Login = '/login',
+  Programs = '/programs',
+}
+
+export enum DashboardCopy {
+  Welcome = 'Welcome to Didaxis Studio',
+  ManagePrograms = 'Manage academic programs',
+}
+```
+
+```ts
+const program = buildProgram();
 trackProgram(await uuidFromProgramCreateResponse(await responsePromise));
 ```
 
@@ -123,10 +162,11 @@ trackProgram(await uuidFromProgramCreateResponse(await responsePromise));
 
 ```ts
 const name = 'Intro to Testing';
+const email = 'qa@example.com';
 await programs.createProgram(name);
 ```
 
-Why: A shared name collides under `fullyParallel`, and an undeleted program piles up until later tests see the wrong row.
+Why: A shared name collides under `fullyParallel`, a literal account does not follow the environment, and an undeleted program piles up until later tests see the wrong row.
 
 ## 6. API testing
 
@@ -135,7 +175,7 @@ Use the `request` fixture for setup, teardown, and contract checks. Program dele
 ✅ Good (advised — no spec takes the `request` fixture yet; `tests/manual/bulk-delete-programs.spec.ts` uses `page.request` and a `{ data: [...] }` body)
 
 ```ts
-test('GET /api/programs returns a list', async ({ request }) => {
+test('GET /api/programs returns a list', { tag: '@api' }, async ({ request }) => {
   const response = await request.get('/api/programs');
   expect(response.ok()).toBeTruthy();
   const body = await response.json();
@@ -223,13 +263,16 @@ Why: A one-shot boolean does not retry, so the assertion fails while the button 
 
 ## 10. Anti-flake
 
-Retries only on CI, and never above 2. Do not set `workers: 1`. Pin `locale: 'en-CA'` and `timezoneId: 'America/Toronto'`. Isolate each test’s data. Freeze relative timestamps with `page.clock.install()`.
+Retries only on CI, and never above 2. Do not set `workers: 1` on the default run. Pin `locale: 'en-CA'` and `timezoneId: 'America/Toronto'`. Isolate each test’s data. Freeze relative timestamps with `page.clock.install()`.
+
+`npm test` and CI set `grepInvert: /@destructive/` so shared-state tests stay out of the parallel suite. `npm run test:destructive` is the exception: `--workers=1`, `fullyParallel: false`, and only the `@destructive` tag.
 
 ✅ Good (`playwright.config.ts`)
 
 ```ts
 fullyParallel: true,
 retries: process.env.CI ? 2 : 0,
+grepInvert: /@destructive/,
 locale: 'en-CA',
 timezoneId: 'America/Toronto',
 ```
@@ -241,7 +284,58 @@ retries: 3,
 workers: 1,
 ```
 
-Why: Extra retries hide a real bug, and an unpinned timezone makes “2 hours ago” differ between a laptop and CI.
+Why: Extra retries hide a real bug, an unpinned timezone makes “2 hours ago” differ between a laptop and CI, and a permanent single worker hides races the rest of the suite still has.
+
+## 11. Tags
+
+Each `test()` carries exactly one strategy tag in the details object: `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, or `@destructive`. Never on `test.describe()`.
+
+| Tag | When |
+|-----|------|
+| `@smoke` | The critical happy path for an area. A small set. |
+| `@sanity` | Another primary success path, or the main guard (empty required field, cancel). |
+| `@regression` | Boundaries, reload edges, authz, unicode, whitespace, accessibility, and quarantined `test.fixme` cases. |
+| `@api` | The assertion is the HTTP contract. No screen journey. |
+| `@e2e` | A browser journey across product areas. |
+| `@destructive` | The test writes shared state: locale, role, feature flag, or setting. |
+
+`@destructive` is only that last case. A test that creates, edits, or deletes a program and `trackProgram` removes that row keeps `@smoke`, `@sanity`, `@regression`, `@api`, or `@e2e`.
+
+Any test that changes persistent state restores it.
+
+- Own records: `trackProgram` and the cleanup fixture, which runs after the test. Do not add a second `afterAll` for those rows.
+- Locale, roles, flags, or settings: `test.afterEach` or `test.afterAll` writes the previous value back, including when the test fails. Tag `@destructive`. Call `test.describe.configure({ mode: 'serial' })`. Run that file only with `npm run test:destructive`.
+
+A `test.fixme` title may still end in `@known-failure`. That marks a quarantine. The strategy tag is the `{ tag }` value.
+
+✅ Good
+
+```ts
+test('admin creates a program', { tag: '@smoke' }, async ({ page }) => {});
+```
+
+```ts
+// Advised — no spec writes locale, roles, flags, or settings yet.
+test.describe.configure({ mode: 'serial' });
+
+let previousLocale: string;
+
+test.afterEach(async () => {
+  await restoreLocale(previousLocale);
+});
+
+test('admin switches the locale', { tag: '@destructive' }, async () => {});
+```
+
+❌ Bad
+
+```ts
+test.describe('programs', { tag: '@regression' }, () => {});
+test('creates a program', { tag: ['@smoke', '@e2e'] }, async () => {});
+test('switches locale', { tag: '@smoke' }, async () => {});
+```
+
+Why: Two tags make `--grep` slices overlap. A describe tag stamps every test in the block. A locale left in place fails the next worker. `npm run test:smoke`, `test:sanity`, `test:regression`, `test:api`, `test:e2e`, and `test:destructive` each select one tag. The last script passes `--workers=1`.
 
 ## Do / Don't
 
@@ -251,9 +345,10 @@ Why: Extra retries hide a real bug, and an unpinned timezone makes “2 hours ag
 | Waiting | `toBeVisible` / `toBeEnabled` / `toHaveText` | `waitForTimeout` |
 | Page objects | One class; locators in the constructor | Assertions in `pages/` |
 | Auth | `storageState` from the setup project | UI login in every test |
-| Test data | `` `${prefix} ${Date.now()}` `` and `trackProgram` | A fixed name, or no delete |
+| Test data | Faker factory, `` `${prefix} ${Date.now()}` ``, `trackProgram`, `process.env`, enums | A fixed name, a hardcoded secret, or no delete |
 | API | `request` fixture for setup and contracts | Prove the API through the UI |
 | Mocking | `route.fulfill` for 500, 503, timeout, `[]`, malformed | Mock the call the test verifies |
 | Accessibility | `wcag2a` / `wcag2aa` and a keyboard path | `.disableRules()` |
 | Assertions | Web-first; `expect.soft` for multi-check | `expect(await locator.isVisible()).toBe(true)` |
-| Anti-flake | CI retries ≤ 2; `en-CA`; `America/Toronto`; `page.clock` | `retries` above 2; `workers: 1` |
+| Anti-flake | CI retries ≤ 2; `en-CA`; `America/Toronto`; `page.clock`; `@destructive` only via `test:destructive` | `retries` above 2; `workers: 1` on the default run |
+| Tags | One of `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, `@destructive` on `test()` | A second tag, a tag on `describe`, `@destructive` for own-row cleanup |

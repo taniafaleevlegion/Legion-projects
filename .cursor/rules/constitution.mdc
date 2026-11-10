@@ -1,11 +1,33 @@
 ---
-description: Always-on Playwright constitution — must, should, and won't for this suite
+description: Always-on Playwright constitution and agent governance — must, should, won't, and the audit-then-edit gate
 alwaysApply: true
 ---
 
 # Playwright constitution
 
-Apply on every test change. Examples live in `.cursor/rules/playwright-conventions.mdc`.
+Apply on every test change. Examples live in `.cursor/rules/playwright-conventions.mdc`. Agent governance applies to every non-trivial task.
+
+## Agent governance
+
+Behavioral contract only. Do not enforce it with a hook.
+
+Audit, then edit. Before editing on a non-trivial task, emit a Proposal block:
+
+```text
+Proposal
+Scope:
+Confidence: <1-10>
+Rationale:
+Unknowns:
+```
+
+| Confidence | Do |
+|------------|----|
+| Under 5 | Do not proceed. Ask for the missing input. |
+| 5–7 | Proceed only with the unknowns written down and a human approval. |
+| 8 or higher | Proceed. |
+
+Never invent a path, enum, env var, credential, or message. Ask, or explore the repo and the live UI, instead.
 
 ## MUST
 
@@ -15,7 +37,8 @@ Apply on every test change. Examples live in `.cursor/rules/playwright-conventio
 | Web-first assertions | `expect(locator).toBeVisible()` / `toBeEnabled()` / `toHaveText()` so the expect retries. |
 | storageState auth | Session from the setup project. UI login only in the login spec. |
 | Unique self-cleaning data | `` `${prefix} ${Date.now()}` ``, then `trackProgram(uuid)` so the fixture deletes it. |
-| One tag per test | A single `{ tag: '@…' }` on the `test()` call. |
+| One strategy tag | Exactly one of `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, `@destructive` on the `test()` call. |
+| Revert shared state | A test that writes locale, roles, flags, or settings is `@destructive`, restores that value in `afterEach` or `afterAll`, and runs only via `test:destructive` (`--workers=1`). |
 
 ## SHOULD
 
@@ -36,7 +59,9 @@ Apply on every test change. Examples live in `.cursor/rules/playwright-conventio
 | Weakened assertions | Softening or deleting an expect to go green hides the failure. |
 | Healing a real bug | Locator drift gets a POM patch. A product defect gets a Jira bug. |
 | Tags on `describe` | A describe tag stamps every test in the block. Tag the test. |
+| A second strategy tag | `@smoke` through `@destructive` are mutually exclusive. Own-record cleanup stays on the importance or lane tag. |
+| `@destructive` for own data | Creating and deleting the test's own records is cleanup, not a shared setting. |
 
 ## Index
 
-Skills: `a11y-checks`, `api-cleanup`, `ci-failure-triage`, `explore-and-generate`, `jira-bug-reporter`, `jira-ticket-to-gherkin`, `pom-conventions`, `programs-api-edges`, `self-heal`. Agents: `test-writer` (plan → spec), `triage` (red run → bug or test issue), `bug-reporter` (confirmed defect → Jira).
+Skills: `a11y-checks`, `api-cleanup`, `ci-failure-triage`, `explore-and-generate`, `exploratory-charter`, `jira-bug-reporter`, `jira-ticket-to-gherkin`, `pom-conventions`, `programs-api-edges`, `self-heal`. Agents: `test-writer` (plan → spec), `triage` (red run → bug or test issue), `bug-reporter` (confirmed defect → Jira).

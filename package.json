@@ -5,6 +5,14 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test",
+    "test:smoke": "playwright test --grep \"@smoke\"",
+    "test:sanity": "playwright test --grep \"@sanity\"",
+    "test:regression": "playwright test --grep \"@regression\"",
+    "test:api": "playwright test --grep \"@api\"",
+    "test:e2e": "playwright test --grep \"@e2e\"",
+    "test:destructive": "playwright test --grep \"@destructive\" --workers=1",
+    "eval-report": "node scripts/eval-report.mjs",
+    "eval-report": "node scripts/eval-report.mjs",
     "test:todomvc": "playwright test tests/todomvc.spec.ts",
     "test:manual:bulk-delete": "playwright test -c playwright.manual.config.ts",
     "purge": "node scripts/purge.mjs"

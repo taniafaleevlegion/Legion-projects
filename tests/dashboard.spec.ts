@@ -25,7 +25,7 @@ test.describe('Dashboard — open Programs from the Programs card', () => {
     await expect(programs.programsHeading).toBeVisible();
   });
 
-  test('Programs card opens the Programs page', async ({ page }) => {
+  test('Programs card opens the Programs page', { tag: '@e2e' }, async ({ page }) => {
     test.setTimeout(90_000);
     const dashboard = dashboardPage(page);
     const programs = programsPage(page);

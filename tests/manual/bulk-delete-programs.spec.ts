@@ -41,7 +41,7 @@ function resolveDeleteCount(total: number): number | 'all' | null {
 }
 
 test.describe('Manual — bulk delete programs', () => {
-  test('GET /api/programs, collect ids, optionally DELETE', async ({ page }) => {
+  test('GET /api/programs, collect ids, optionally DELETE', { tag: '@api' }, async ({ page }) => {
     test.setTimeout(600_000);
 
     const email = process.env.DIDAXIS_EMAIL;

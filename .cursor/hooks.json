@@ -17,6 +17,18 @@
         "matcher": "Write",
         "failClosed": true
       }
+    ],
+    "stop": [
+      {
+        "command": "node .cursor/hooks/eval-report.mjs",
+        "timeout": 180
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "node .cursor/hooks/eval-report.mjs",
+        "timeout": 180
+      }
     ]
   }
 }

@@ -74,6 +74,8 @@ Stop on a repeated identical failure and move on. Never merge or close without a
 - A human approves any merge and any filed bug.
 - Never merge a PR or close a ticket without a human.
 - **Done** when the suite is green for the ticket, or a bug is filed and linked to the story. In Backlog mode, done for a ticket also means its PR is open, the ticket is linked, and it has the "tests-generated" label.
+- When this orchestration run finishes, locally or from the test-generation workflow, `node scripts/eval-report.mjs` refreshes `eval-report.md`. The `stop` and `subagentStop` hooks do that locally. Do not invent the numbers.
+- When this orchestration run finishes, locally or from the test-generation workflow, `node scripts/eval-report.mjs` refreshes `eval-report.md`. The `stop` and `subagentStop` hooks do that locally. Do not invent the numbers.
 
 ## Guardrails
 

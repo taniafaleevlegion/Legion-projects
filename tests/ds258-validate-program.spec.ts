@@ -118,7 +118,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
 
   // Happy paths
 
-  test('Accept program name with special characters', async ({ page }) => {
+  test('Accept program name with special characters', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(INFORMATICS_NAME);
 
@@ -136,7 +136,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
 
   // Negative
 
-  test('Reject program name with only whitespace', async ({ page }) => {
+  test('Reject program name with only whitespace', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
 
     await openCreateForm(programs);
@@ -147,7 +147,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
 
   // Known gap: duplicate rejection may still be unimplemented (DS-3 / DS-249).
   // Asserts the AC (error, modal open, single row); marked fixme until the app enforces uniqueness.
-  test.fixme('Reject duplicate program name @known-failure', async ({ page }) => {
+  test.fixme('Reject duplicate program name @known-failure', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(WEB_DEV_NAME);
 
@@ -161,7 +161,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
 
   // Edge cases
 
-  test('Empty program name keeps Create disabled', async ({ page }) => {
+  test('Empty program name keeps Create disabled', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
 
     await openCreateForm(programs);
@@ -171,7 +171,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
     await expect(programs.newProgramModal.heading).toBeVisible();
   });
 
-  test('Special-character name is accepted when Description is left empty', async ({ page }) => {
+  test('Special-character name is accepted when Description is left empty', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(INFORMATICS_NAME);
 
@@ -184,7 +184,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
     await expectProgramCreated(programs, programName);
   });
 
-  test('Whitespace-only name can be corrected and then created', async ({ page }) => {
+  test('Whitespace-only name can be corrected and then created', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName(INFORMATICS_NAME);
 
@@ -206,7 +206,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
   // Do not .disableRules(); keep the AC assertion under fixme until the control is named.
   test.fixme(
     'New Program dialog has no axe violations @known-failure',
-    { tag: '@a11y' },
+    { tag: '@regression' },
     async ({ page }) => {
       const programs = programsPage(page);
       await openCreateForm(programs);
@@ -223,7 +223,7 @@ test.describe('DS-258 — Program name validation and duplicate prevention', () 
 
   test(
     'Keyboard creates a special-character program name',
-    { tag: '@a11y' },
+    { tag: '@regression' },
     async ({ page }) => {
       const programs = programsPage(page);
       const programName = uniqueName(INFORMATICS_NAME);

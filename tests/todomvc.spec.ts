@@ -55,7 +55,7 @@ function markAllComplete(page: Page) {
 }
 
 test.describe('TodoMVC — Positive flows', () => {
-  test('TC-001 — Single todo appears in the list after valid entry', async ({ page }) => {
+  test('TC-001 — Single todo appears in the list after valid entry', { tag: '@smoke' }, async ({ page }) => {
     await gotoClean(page);
 
     await newTodoInput(page).click();
@@ -71,7 +71,7 @@ test.describe('TodoMVC — Positive flows', () => {
     await expect(markAllComplete(page)).toBeVisible();
   });
 
-  test('TC-002 — Multiple distinct todos are all listed in add order', async ({ page }) => {
+  test('TC-002 — Multiple distinct todos are all listed in add order', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
 
     await addTodo(page, 'Buy milk');
@@ -92,7 +92,7 @@ test.describe('TodoMVC — Positive flows', () => {
     }
   });
 
-  test('TC-003 — Todo item is marked completed when toggled', async ({ page }) => {
+  test('TC-003 — Todo item is marked completed when toggled', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Schedule dentist');
 
@@ -105,7 +105,7 @@ test.describe('TodoMVC — Positive flows', () => {
     await expect(todoItem(page, 'Schedule dentist').getByTestId('todo-title')).toBeVisible();
   });
 
-  test('TC-004 — Completed todo can be returned to active by toggling again', async ({ page }) => {
+  test('TC-004 — Completed todo can be returned to active by toggling again', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Schedule dentist');
     await toggleTodo(page, 'Schedule dentist');
@@ -118,7 +118,7 @@ test.describe('TodoMVC — Positive flows', () => {
     await expectItemsLeft(page, 1);
   });
 
-  test('TC-005 — Todo is removed from the list when Delete is used', async ({ page }) => {
+  test('TC-005 — Todo is removed from the list when Delete is used', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Walk the dog');
 
@@ -129,7 +129,7 @@ test.describe('TodoMVC — Positive flows', () => {
     await expect(newTodoInput(page)).toBeVisible();
   });
 
-  test('TC-006 — Delete removes only the targeted todo when multiple exist', async ({ page }) => {
+  test('TC-006 — Delete removes only the targeted todo when multiple exist', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Buy milk');
     await addTodo(page, 'Walk the dog');
@@ -142,7 +142,7 @@ test.describe('TodoMVC — Positive flows', () => {
     await expectItemsLeft(page, 1);
   });
 
-  test('TC-007 — Mark all as complete completes every active todo', async ({ page }) => {
+  test('TC-007 — Mark all as complete completes every active todo', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Buy milk');
     await addTodo(page, 'Walk the dog');
@@ -159,7 +159,7 @@ test.describe('TodoMVC — Positive flows', () => {
 });
 
 test.describe('TodoMVC — Negative flows', () => {
-  test('TC-008 — Empty submission does not create a todo row', async ({ page }) => {
+  test('TC-008 — Empty submission does not create a todo row', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
 
     await newTodoInput(page).click();
@@ -170,7 +170,7 @@ test.describe('TodoMVC — Negative flows', () => {
     await expect(newTodoInput(page)).toBeEnabled();
   });
 
-  test('TC-009 — Whitespace-only input does not add a visible todo', async ({ page }) => {
+  test('TC-009 — Whitespace-only input does not add a visible todo', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
 
     await addTodo(page, '   ');
@@ -179,7 +179,7 @@ test.describe('TodoMVC — Negative flows', () => {
     await expect(footer(page)).toBeHidden();
   });
 
-  test('TC-010 — Completing a todo does not remove it from the All view', async ({ page }) => {
+  test('TC-010 — Completing a todo does not remove it from the All view', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Buy milk');
 
@@ -190,7 +190,7 @@ test.describe('TodoMVC — Negative flows', () => {
     await expect(todoItem(page, 'Buy milk').getByRole('button', { name: 'Delete' })).toBeAttached();
   });
 
-  test('TC-011 — Deleting a todo does not mark other todos completed', async ({ page }) => {
+  test('TC-011 — Deleting a todo does not mark other todos completed', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Buy milk');
     await addTodo(page, 'Walk the dog');
@@ -203,7 +203,7 @@ test.describe('TodoMVC — Negative flows', () => {
     await expect(markAllComplete(page)).not.toBeChecked();
   });
 
-  test('TC-012 — Pressing Enter on empty input after deleting all todos does not restore deleted items', async ({
+  test('TC-012 — Pressing Enter on empty input after deleting all todos does not restore deleted items', { tag: '@regression' }, async ({
     page,
   }) => {
     await gotoClean(page);
@@ -217,7 +217,7 @@ test.describe('TodoMVC — Negative flows', () => {
     expect(stored === null || stored === '[]').toBeTruthy();
   });
 
-  test('TC-013 — Toggle on non-existent row cannot be triggered (sanity)', async ({ page }) => {
+  test('TC-013 — Toggle on non-existent row cannot be triggered (sanity)', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
 
     await expect(page.getByRole('checkbox', { name: 'Toggle Todo' })).toHaveCount(0);
@@ -226,7 +226,7 @@ test.describe('TodoMVC — Negative flows', () => {
 });
 
 test.describe('TodoMVC — Edge cases', () => {
-  test('TC-014 — Leading and trailing spaces are trimmed on add', async ({ page }) => {
+  test('TC-014 — Leading and trailing spaces are trimmed on add', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
 
     await addTodo(page, '  Buy milk  ');
@@ -235,7 +235,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItem(page, 'Buy milk').getByTestId('todo-title')).toHaveText('Buy milk');
   });
 
-  test('TC-015 — Special characters and symbols are stored and displayed literally', async ({ page }) => {
+  test('TC-015 — Special characters and symbols are stored and displayed literally', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
     const title = 'Pay €50 & "utilities" <test>';
 
@@ -253,7 +253,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItems(page)).toHaveCount(0);
   });
 
-  test('TC-016 — Unicode and emoji characters are accepted in todo titles', async ({ page }) => {
+  test('TC-016 — Unicode and emoji characters are accepted in todo titles', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
     const title = 'Buy milk 🥛 and 日本語';
 
@@ -267,7 +267,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItems(page)).toHaveCount(0);
   });
 
-  test('TC-017 — Duplicate titles are allowed as separate list items', async ({ page }) => {
+  test('TC-017 — Duplicate titles are allowed as separate list items', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
 
     await addTodo(page, 'Buy milk');
@@ -292,7 +292,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItem(page, 'Buy milk', 0)).not.toHaveClass(/completed/);
   });
 
-  test('TC-018 — Very long todo title is accepted and fully visible in the label', async ({ page }) => {
+  test('TC-018 — Very long todo title is accepted and fully visible in the label', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
     const longTitle = 'A'.repeat(500);
 
@@ -304,7 +304,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItems(page)).toHaveCount(0);
   });
 
-  test('TC-019 — Single-character todo is valid', async ({ page }) => {
+  test('TC-019 — Single-character todo is valid', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
 
     await addTodo(page, '?');
@@ -315,7 +315,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItems(page)).toHaveCount(0);
   });
 
-  test('TC-020 — Completed filter hides active items but retains completed after delete of another', async ({
+  test('TC-020 — Completed filter hides active items but retains completed after delete of another', { tag: '@regression' }, async ({
     page,
   }) => {
     await gotoClean(page);
@@ -339,7 +339,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItem(page, 'Buy milk')).not.toHaveClass(/completed/);
   });
 
-  test('TC-021 — Active filter excludes completed items after toggle', async ({ page }) => {
+  test('TC-021 — Active filter excludes completed items after toggle', { tag: '@sanity' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Buy milk');
     await addTodo(page, 'Walk the dog');
@@ -355,7 +355,7 @@ test.describe('TodoMVC — Edge cases', () => {
     await expect(todoItem(page, 'Buy milk')).toBeVisible();
   });
 
-  test('TC-022 — Page refresh persists todos via localStorage', async ({ page }) => {
+  test('TC-022 — Page refresh persists todos via localStorage', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
     await addTodo(page, 'Persist me');
 
@@ -366,7 +366,7 @@ test.describe('TodoMVC — Edge cases', () => {
     expect(stored).toContain('Persist me');
   });
 
-  test('TC-023 — Rapid consecutive adds create distinct rows', async ({ page }) => {
+  test('TC-023 — Rapid consecutive adds create distinct rows', { tag: '@regression' }, async ({ page }) => {
     await gotoClean(page);
 
     await addTodo(page, 'Task 1');

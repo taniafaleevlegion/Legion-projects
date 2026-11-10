@@ -59,7 +59,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expect(programs.newProgramButton).toBeVisible();
   });
 
-  test('TC-001 — Programs list displays name and description for every created program', async ({
+  test('TC-001 — Programs list displays name and description for every created program', { tag: '@smoke' }, async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -88,7 +88,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     }
   });
 
-  test('TC-002 — Single program shows name and description on the Programs page', async ({
+  test('TC-002 — Single program shows name and description on the Programs page', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -100,7 +100,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expect(programs.emptyStateMessage()).toHaveCount(0);
   });
 
-  test('TC-003 — Empty state shows no-program message and create prompt', async ({ page }) => {
+  test('TC-003 — Empty state shows no-program message and create prompt', { tag: '@sanity' }, async ({ page }) => {
     test.skip(
       true,
       'Requires an isolated tenant with zero programs; shared test.didaxis.studio always has existing programs.',
@@ -110,7 +110,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expect(programs.newProgramButton).toBeVisible();
   });
 
-  test('TC-004 — Create-first-program prompt opens program creation', async ({ page }) => {
+  test('TC-004 — Create-first-program prompt opens program creation', { tag: '@sanity' }, async ({ page }) => {
     test.skip(
       true,
       'Requires empty program list; use isolated tenant or DB reset to validate empty-state CTA.',
@@ -120,7 +120,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expect(programs.newProgramModal.programNameField).toBeVisible();
   });
 
-  test('TC-005 — Program list remains accurate after browser reload', async ({ page }) => {
+  test('TC-005 — Program list remains accurate after browser reload', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programA = uniqueName('Web Development 2026');
     const programB = uniqueName('Data Science 2026');
@@ -136,7 +136,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expectRowShowsNameAndDescription(programs, programB, descB);
   });
 
-  test('TC-006 — Special characters in name and description render correctly in the list', async ({
+  test('TC-006 — Special characters in name and description render correctly in the list', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -146,7 +146,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expectRowShowsNameAndDescription(programs, programName, description);
   });
 
-  test('TC-007 — Newly created program appears in the list with name and description', async ({
+  test('TC-007 — Newly created program appears in the list with name and description', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -156,7 +156,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expectRowShowsNameAndDescription(programs, programName, description);
   });
 
-  test('TC-101 — Populated list must not show empty-state messaging', async ({ page }) => {
+  test('TC-101 — Populated list must not show empty-state messaging', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     await createProgram(programs, programName, 'Listed program with description');
@@ -165,7 +165,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expect(programs.emptyStateMessage()).toHaveCount(0);
   });
 
-  test('TC-102 — Empty state must not display fabricated program rows', async ({ page }) => {
+  test('TC-102 — Empty state must not display fabricated program rows', { tag: '@regression' }, async ({ page }) => {
     test.skip(
       true,
       'Requires zero programs in tenant to validate empty state without placeholder rows.',
@@ -174,7 +174,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expect(programs.main.getByText(/sample program|lorem ipsum/i)).toHaveCount(0);
   });
 
-  test('TC-105 — Each visible program row shows both name and description', async ({ page }) => {
+  test('TC-105 — Each visible program row shows both name and description', { tag: '@regression' }, async ({ page }) => {
     test.setTimeout(60_000);
     const programs = programsPage(page);
     const programList = [
@@ -189,7 +189,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     }
   });
 
-  test('TC-106 — Deleted program must not remain visible in the list', async ({ page }) => {
+  test('TC-106 — Deleted program must not remain visible in the list', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Test Program');
     const description = 'To be removed from list display';
@@ -202,7 +202,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expect(programs.main.getByText(description, { exact: true })).toHaveCount(0);
   });
 
-  test('TC-107 — Rejected duplicate create does not add incomplete list row', async ({
+  test('TC-107 — Rejected duplicate create does not add incomplete list row', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -240,7 +240,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     }
   });
 
-  test('TC-203 — Unicode and accented characters display correctly in the list', async ({
+  test('TC-203 — Unicode and accented characters display correctly in the list', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -250,7 +250,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expectRowShowsNameAndDescription(programs, programName, description);
   });
 
-  test('TC-205 — HTML-like description is shown safely without executing script', async ({
+  test('TC-205 — HTML-like description is shown safely without executing script', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -266,7 +266,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     expect(alertFired).toBe(false);
   });
 
-  test('TC-206 — Trimmed program name displays without leading or trailing spaces', async ({
+  test('TC-206 — Trimmed program name displays without leading or trailing spaces', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -288,14 +288,14 @@ test.describe('DS-5 — Program list filtering and display', () => {
     await expectRowShowsNameAndDescription(programs, storedName, description);
   });
 
-  test('TC-207 — Creating first program replaces empty-state messaging', async ({ page }) => {
+  test('TC-207 — Creating first program replaces empty-state messaging', { tag: '@sanity' }, async ({ page }) => {
     test.skip(
       true,
       'Requires starting from zero programs; not feasible on shared test environment.',
     );
   });
 
-  test('TC-208 — Deleting the last program restores empty state with create prompt', async ({
+  test('TC-208 — Deleting the last program restores empty state with create prompt', { tag: '@regression' }, async ({
     page,
   }) => {
     test.skip(
@@ -304,7 +304,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
     );
   });
 
-  test('TC-210 — Similar program names remain distinguishable in the list', async ({ page }) => {
+  test('TC-210 — Similar program names remain distinguishable in the list', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const name2026 = uniqueName('Web Development 2026');
     const name2027 = uniqueName('Web Development 2027');
@@ -321,7 +321,7 @@ test.describe('DS-5 — Program list filtering and display', () => {
 test.describe('DS-5 — Unauthenticated access', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('TC-103 — Unauthenticated user must not see the admin program list', async ({ page }) => {
+  test('TC-103 — Unauthenticated user must not see the admin program list', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/login/);

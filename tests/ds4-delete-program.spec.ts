@@ -62,7 +62,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.newProgramButton).toBeVisible();
   });
 
-  test('TC-001 — Delete action opens confirmation dialog for the selected program', async ({
+  test('TC-001 — Delete action opens confirmation dialog for the selected program', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -76,7 +76,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(programName)).toBeVisible();
   });
 
-  test.fixme('TC-002 — Confirmed deletion removes program from Programs list @known-failure', async ({
+  test.fixme('TC-002 — Confirmed deletion removes program from Programs list @known-failure', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -90,7 +90,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     expect(await programs.tableRows().count()).toBeLessThan(rowsBefore);
   });
 
-  test('TC-003 — Cancel on confirmation dialog leaves program in the list', async ({ page }) => {
+  test('TC-003 — Cancel on confirmation dialog leaves program in the list', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     await createProgram(programs, programName, 'Cancel delete test');
@@ -100,7 +100,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(programName)).toBeVisible();
   });
 
-  test('TC-004 — Deleted program does not reappear after Programs page reload', async ({
+  test('TC-004 — Deleted program does not reappear after Programs page reload', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -114,7 +114,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-005 — Confirmation dialog references the program being deleted', async ({
+  test('TC-005 — Confirmation dialog references the program being deleted', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -127,7 +127,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(programName)).toBeVisible();
   });
 
-  test('TC-006 — Other programs remain in the list when one program is deleted', async ({
+  test('TC-006 — Other programs remain in the list when one program is deleted', { tag: '@regression' }, async ({
     page,
   }) => {
     test.setTimeout(90_000);
@@ -149,7 +149,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.editProgramButton(keepB)).toBeVisible();
   });
 
-  test('TC-101 — Program is not removed when deletion is not confirmed', async ({ page }) => {
+  test('TC-101 — Program is not removed when deletion is not confirmed', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Test Program');
     await createProgram(programs, programName, 'Not confirmed');
@@ -161,7 +161,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     expect(await programs.tableRows().count()).toBe(rowsBefore);
   });
 
-  test('TC-105 — Dismiss confirmation does not delete the program', async ({ page }) => {
+  test('TC-105 — Dismiss confirmation does not delete the program', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Data Analytics 2026');
     await createProgram(programs, programName, 'Dismiss only');
@@ -172,7 +172,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.page.getByText(/deleted successfully|was deleted/i)).toHaveCount(0);
   });
 
-  test('TC-106 — Cancel must not remove the program or show deletion success', async ({
+  test('TC-106 — Cancel must not remove the program or show deletion success', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -189,7 +189,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     ).toHaveCount(0);
   });
 
-  test('TC-107 — Confirming deletion must not remove a different program', async ({ page }) => {
+  test('TC-107 — Confirming deletion must not remove a different program', { tag: '@regression' }, async ({ page }) => {
     test.setTimeout(60_000);
     const programs = programsPage(page);
     const alpha = uniqueName('Program Alpha');
@@ -206,7 +206,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.editProgramButton(beta)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-202 — Delete program whose name contains special characters and Unicode', async ({
+  test('TC-202 — Delete program whose name contains special characters and Unicode', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -218,7 +218,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-203 — Delete correct row when two programs have similar display names', async ({
+  test('TC-203 — Delete correct row when two programs have similar display names', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -233,7 +233,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(archive)).toBeVisible();
   });
 
-  test('TC-205 — Rapid double-click delete icon opens one confirmation flow', async ({
+  test('TC-205 — Rapid double-click delete icon opens one confirmation flow', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -254,7 +254,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(programName)).toBeVisible();
   });
 
-  test('TC-206 — Confirmed delete removes program once without duplicate rows', async ({
+  test('TC-206 — Confirmed delete removes program once without duplicate rows', { tag: '@smoke' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -268,7 +268,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.deleteProgramButton(programName)).toHaveCount(0);
   });
 
-  test('TC-210 — Delete program with description not shown in list row', async ({ page }) => {
+  test('TC-210 — Delete program with description not shown in list row', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Test Program');
     const description = 'Full-stack curriculum with capstone project';
@@ -278,7 +278,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
     await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-212 — Undo is not offered after confirmed deletion', async ({ page }) => {
+  test('TC-212 — Undo is not offered after confirmed deletion', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('No Undo Program');
     await createProgram(programs, programName, 'No undo expected');
@@ -293,7 +293,7 @@ test.describe('DS-4 — Delete program with confirmation', () => {
 test.describe('DS-4 — Unauthenticated access', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('TC-104 — Unauthenticated user cannot delete a program', async ({ page }) => {
+  test('TC-104 — Unauthenticated user cannot delete a program', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/login/);

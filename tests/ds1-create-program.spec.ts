@@ -52,7 +52,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramButton).toBeVisible();
   });
 
-  test('TC-001 — Admin opens program creation form with required fields', async ({
+  test('TC-001 — Admin opens program creation form with required fields', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -60,7 +60,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramModal.createButton).toBeVisible();
   });
 
-  test('TC-002 — Admin creates program with name and description; list updates', async ({
+  test('TC-002 — Admin creates program with name and description; list updates', { tag: '@smoke' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -76,14 +76,14 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-003 — Create button disabled when Program Name is empty', async ({ page }) => {
+  test('TC-003 — Create button disabled when Program Name is empty', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     await programs.openNewProgramForm();
     await programs.newProgramModal.fillDescription('Any description');
     await expect(programs.newProgramModal.createButton).toBeDisabled();
   });
 
-  test('TC-004 — Admin creates program with name only (Description empty)', async ({
+  test('TC-004 — Admin creates program with name only (Description empty)', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -98,7 +98,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-005 — Admin cancels creation; no new program in list', async ({ page }) => {
+  test('TC-005 — Admin cancels creation; no new program in list', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Temporary Program Name');
 
@@ -111,7 +111,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-006 — New program appears in list without full page reload', async ({
+  test('TC-006 — New program appears in list without full page reload', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -128,7 +128,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-102 — Empty Program Name cannot result in a saved program', async ({
+  test('TC-102 — Empty Program Name cannot result in a saved program', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -138,7 +138,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramModal.dialog).toBeHidden();
   });
 
-  test('TC-103 — Create remains disabled after clearing a previously entered name', async ({
+  test('TC-103 — Create remains disabled after clearing a previously entered name', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -150,7 +150,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramModal.createButton).toBeDisabled();
   });
 
-  test.fixme('TC-201 — Program Name at minimum valid length (single character) @known-failure', async ({
+  test.fixme('TC-201 — Program Name at minimum valid length (single character) @known-failure', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -165,7 +165,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-204 — Program Name with leading and trailing whitespace is trimmed', async ({
+  test('TC-204 — Program Name with leading and trailing whitespace is trimmed', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -182,7 +182,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.programRow(storedName)).toBeVisible({ timeout: 15_000 });
   });
 
-  test('TC-205 — Program Name containing only whitespace cannot be created', async ({
+  test('TC-205 — Program Name containing only whitespace cannot be created', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -191,7 +191,7 @@ test.describe('DS-1 — Create new academic program', () => {
     await expect(programs.newProgramModal.createButton).toBeDisabled();
   });
 
-  test('TC-206 — Special characters and Unicode in Program Name', async ({ page }) => {
+  test('TC-206 — Special characters and Unicode in Program Name', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Développement Web — 2026 (Phase 1)');
 
@@ -205,7 +205,7 @@ test.describe('DS-1 — Create new academic program', () => {
   });
 
   // DS-189 — double-click Create submits twice (separate from duplicate-name validation)
-  test.fixme('TC-212 — Rapid double-click on Create creates only one program', async ({
+  test.fixme('TC-212 — Rapid double-click on Create creates only one program', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -223,7 +223,7 @@ test.describe('DS-1 — Create new academic program', () => {
 test.describe('DS-1 — Unauthenticated access', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('TC-105 — Unauthenticated user cannot reach program creation', async ({ page }) => {
+  test('TC-105 — Unauthenticated user cannot reach program creation', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/login/);

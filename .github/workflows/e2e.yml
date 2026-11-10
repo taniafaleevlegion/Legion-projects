@@ -1,13 +1,19 @@
 name: E2E Tests
 
 on:
+  # Sanity: every push to main.
   push:
     branches: [main]
+    paths-ignore:
+      - eval-report.md
+  # Smoke: every pull request.
   pull_request:
+  # Regression: the full default suite, only when someone starts the workflow.
   workflow_dispatch:
 
 jobs:
   test:
+    name: ${{ github.event_name == 'pull_request' && 'Smoke' || github.event_name == 'workflow_dispatch' && 'Regression' || 'Sanity' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -27,7 +33,24 @@ jobs:
 
       - run: npx playwright install --with-deps chromium
 
-      - run: npx playwright test
+      - name: Select suite
+        id: suite
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            echo "script=test:smoke" >> "$GITHUB_OUTPUT"
+            echo "label=smoke" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "script=test" >> "$GITHUB_OUTPUT"
+            echo "label=regression" >> "$GITHUB_OUTPUT"
+          else
+            echo "script=test:sanity" >> "$GITHUB_OUTPUT"
+            echo "label=sanity" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run ${{ steps.suite.outputs.label }}
+        run: npm run ${{ steps.suite.outputs.script }}
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}

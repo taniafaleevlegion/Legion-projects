@@ -40,12 +40,34 @@ npx playwright test
 
 ## Run a tagged slice
 
-Each test carries one tag. Examples already in the suite are `@a11y` and `@regression`.
+Each test carries exactly one tag: `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, or `@destructive`.
 
 ```bash
-npx playwright test --grep @a11y
-npx playwright test --grep @regression
+npm run test:smoke
+npm run test:sanity
+npm run test:regression
+npm run test:api
+npm run test:e2e
+npm run test:destructive
 ```
+
+`test:destructive` passes `--workers=1`. It is the only slice that may change locale, roles, flags, or settings, and the default `npm test` skips that tag. A test that only creates and deletes its own program stays on `@smoke`, `@sanity`, `@regression`, `@api`, or `@e2e`.
+
+## CI
+
+`.github/workflows/e2e.yml` uses the `DIDAXIS_*` secrets and Chromium.
+
+| Event | Suite |
+|---|---|
+| Pull request | `npm run test:smoke` |
+| Push to `main` | `npm run test:sanity` |
+| Actions → Run workflow | `npm test` — every default-suite test (regression), still skipping `@destructive` |
+
+`eval-report.md` is the reliability report. `npm run eval-report` rebuilds it from CI annotations, pull requests, and local agent transcripts. The test-generation workflow rebuilds it when that job finishes. A local agent or subagent rebuilds it from the `stop` and `subagentStop` hooks.
+
+`eval-report.md` is the reliability report. `npm run eval-report` rebuilds it from CI annotations, pull requests, and local agent transcripts. The test-generation workflow rebuilds it when that job finishes. A local agent or subagent rebuilds it from the `stop` and `subagentStop` hooks.
+
+`@api` includes `tests/manual/bulk-delete-programs.spec.ts`, which `testIgnore` still keeps out of these scripts. Run that file with `npm run test:manual:bulk-delete`.
 
 ## Agents and skills
 
@@ -56,4 +78,4 @@ Open this repo in Cursor. Project rules, skills, and agents live under `.cursor/
 - **Skills:** `.cursor/skills/` — ticket to Gherkin, coverage exploration, locator self-heal, page objects, API cleanup, accessibility, programs API edges, CI triage, and Jira bug reports.
 - **Playwright MCP:** `.cursor/mcp.json`.
 
-The **Agent / CI setup** variables in `.env.example` are not read by `npx playwright test`. The weekday job in `.github/workflows/test-generation.yml` passes `CURSOR_API_KEY`, `ATLASSIAN_API_TOKEN`, `ATLASSIAN_BASE_URL`, and `ATLASSIAN_EMAIL` from GitHub Actions secrets into a headless `agent -p` run. Locally, put those MCP tokens in Cursor settings. `.github/workflows/e2e.yml` runs the suite with the `DIDAXIS_*` secrets only.
+The **Agent / CI setup** variables in `.env.example` are not read by `npx playwright test`. The weekday job in `.github/workflows/test-generation.yml` passes `CURSOR_API_KEY`, `ATLASSIAN_API_TOKEN`, `ATLASSIAN_BASE_URL`, and `ATLASSIAN_EMAIL` from GitHub Actions secrets into a headless `agent -p` run. Locally, put those MCP tokens in Cursor settings.

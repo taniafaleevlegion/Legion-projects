@@ -59,7 +59,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.programsHeading).toBeVisible();
   });
 
-  test('TC-001 — Edit form opens with current program data pre-filled', async ({ page }) => {
+  test('TC-001 — Edit form opens with current program data pre-filled', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const description = 'Full-stack web development program';
@@ -71,7 +71,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.saveButton).toBeVisible();
   });
 
-  test('TC-002 — Program Name update persists and list refreshes immediately', async ({
+  test('TC-002 — Program Name update persists and list refreshes immediately', { tag: '@smoke' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -88,7 +88,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramButton(updatedName)).toBeVisible();
   });
 
-  test('TC-003 — Description-only edit leaves Program Name unchanged', async ({ page }) => {
+  test('TC-003 — Description-only edit leaves Program Name unchanged', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Cybersecurity 2026');
     const originalDescription = 'Introductory security track';
@@ -106,7 +106,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.descriptionField).toHaveValue(updatedDescription);
   });
 
-  test('TC-004 — Admin saves Description update; modal closes and edit shows new value', async ({
+  test('TC-004 — Admin saves Description update; modal closes and edit shows new value', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -123,7 +123,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.descriptionField).toHaveValue(updatedDescription);
   });
 
-  test('TC-005 — Cancel edit discards changes and restores list state', async ({ page }) => {
+  test('TC-005 — Cancel edit discards changes and restores list state', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     await createProgram(programs, programName, 'Full-stack web development program');
@@ -137,7 +137,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.programRow('Should Not Persist')).toHaveCount(0);
   });
 
-  test('TC-006 — Updated program remains visible after Programs page reload', async ({
+  test('TC-006 — Updated program remains visible after Programs page reload', { tag: '@sanity' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -156,7 +156,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-007 — Edit modal exposes Show AI Generation Config', async ({ page }) => {
+  test('TC-007 — Edit modal exposes Show AI Generation Config', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     await createProgram(programs, programName, 'AI config probe');
@@ -167,7 +167,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.programNameField).toBeEditable();
   });
 
-  test('TC-101 — Empty Program Name cannot be saved on edit', async ({ page }) => {
+  test('TC-101 — Empty Program Name cannot be saved on edit', { tag: '@sanity' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     await createProgram(programs, programName, 'Full-stack web development program');
@@ -179,7 +179,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.programRow(programName)).toBeVisible();
   });
 
-  test('TC-102 — Save blocked when Program Name is cleared', async ({ page }) => {
+  test('TC-102 — Save blocked when Program Name is cleared', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     await createProgram(programs, programName, 'Valid description');
@@ -191,7 +191,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.saveButton).toBeDisabled();
   });
 
-  test.fixme('TC-106 — Successful rename updates row in place (row count unchanged) @known-failure', async ({
+  test.fixme('TC-106 — Successful rename updates row in place (row count unchanged) @known-failure', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -211,7 +211,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
   });
 
   // DS-249 — edit allows duplicate program name (see also DS-229)
-  test.fixme('TC-108 — Renaming to existing program name should be rejected @known-failure', async ({
+  test.fixme('TC-108 — Renaming to existing program name should be rejected @known-failure', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -250,7 +250,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     expect(await programs.programRow(nameB).count()).toBe(countBeforeB);
   });
 
-  test('TC-107 — Invalid name with whitespace-only does not corrupt stored fields', async ({
+  test('TC-107 — Invalid name with whitespace-only does not corrupt stored fields', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -269,7 +269,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.descriptionField).toHaveValue(description);
   });
 
-  test('TC-201 — Program Name at 100 characters saves on edit', async ({ page }) => {
+  test('TC-201 — Program Name at 100 characters saves on edit', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     const long100 = `${Date.now()}${'X'.repeat(100)}`.slice(0, 100);
@@ -286,7 +286,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.programNameField).toHaveValue(long100);
   });
 
-  test('TC-202 — Program Name at 101 characters on edit (current: accepted)', async ({
+  test('TC-202 — Program Name at 101 characters on edit (current: accepted)', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -309,7 +309,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.programRow(long101)).toBeVisible();
   });
 
-  test('TC-204 — Leading and trailing whitespace in Program Name is trimmed on save', async ({
+  test('TC-204 — Leading and trailing whitespace in Program Name is trimmed on save', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -326,7 +326,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.programRow(programName)).toHaveCount(0);
   });
 
-  test('TC-205 — Special characters and Unicode in Program Name persist correctly', async ({
+  test('TC-205 — Special characters and Unicode in Program Name persist correctly', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -343,7 +343,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.programNameField).toHaveValue(unicodeName);
   });
 
-  test('TC-211 — Clearing Description on edit is allowed and persists', async ({ page }) => {
+  test('TC-211 — Clearing Description on edit is allowed and persists', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     const programName = uniqueName('Web Development 2026');
     await createProgram(programs, programName, 'Full-stack web development program');
@@ -358,7 +358,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
     await expect(programs.editProgramModal.descriptionField).toHaveValue('');
   });
 
-  test('TC-208 — Rapid double-click Save closes modal once; documents duplicate PATCH', async ({
+  test('TC-208 — Rapid double-click Save closes modal once; documents duplicate PATCH', { tag: '@regression' }, async ({
     page,
   }) => {
     const programs = programsPage(page);
@@ -390,7 +390,7 @@ test.describe('DS-2 — Edit existing academic program', () => {
 test.describe('DS-2 — Unauthenticated access', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('TC-105 — Unauthenticated user cannot open program edit', async ({ page }) => {
+  test('TC-105 — Unauthenticated user cannot open program edit', { tag: '@regression' }, async ({ page }) => {
     const programs = programsPage(page);
     await programs.goto(baseURL);
     await expect(page).toHaveURL(/\/login/);

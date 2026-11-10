@@ -19,8 +19,10 @@ its UUID and delete it via the API afterwards.
    Import `test` from there, not from `@playwright/test`.
 2. When a test creates a program, capture the program's UUID and call
    `trackProgram(uuid)` immediately.
-3. Do not write manual `afterAll` blocks for cleanup — the fixture
-   handles teardown for every test that uses it.
+3. Do not write manual `afterAll` blocks for program cleanup — the fixture
+   handles teardown for every test that uses it. A test that writes locale,
+   roles, flags, or settings is not program cleanup: tag it `@destructive`
+   and restore the previous value in `afterEach` or `afterAll`.
 4. Cleanup uses the DELETE API, not the UI:
    `DELETE /api/programs/<uuid>` with a Bearer token from
    `process.env.DIDAXIS_API_TOKEN`.

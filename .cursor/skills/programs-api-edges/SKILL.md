@@ -15,7 +15,7 @@ Before writing the assertions, open the real page (use agent-browser / PW MCP) a
 
 Never mock the endpoint the test is actually verifying.
 
-Route all interactions through the existing POMs. One tag per test.
+Route all interactions through the existing POMs. One strategy tag per test: `@smoke`, `@sanity`, `@regression`, `@api`, `@e2e`, or `@destructive`.
 
 Fulfill only the method that case needs (`GET` list, `POST` create, `PATCH` edit). Let every other method through with `route.continue()`. A test that checks create, edit, or delete really happened must not fulfill that write. A mocked case creates no program, so do not call `trackProgram`.
 
