@@ -1,13 +1,14 @@
 # Reliability report
 
-Generated 2026-11-10T19:39:15.688Z. Repo `taniafaleevlegion/Legion-projects`. Cursor has no built-in telemetry for these numbers. Each section says where the number came from.
+Generated 2026-11-10T19:54:10.405Z. Repo `taniafaleevlegion/Legion-projects`. Cursor has no built-in telemetry for these numbers. Each section says where the number came from.
 
 ## Flake rate
 
-**4 / 1024 executed tests (0.4%)** passed only on retry.
+**5 / 960 executed tests (0.5%)** passed only on retry.
 
 Measured from the Playwright summary annotation on the last 10 completed E2E or Playwright workflow runs (10 had a summary, 0 did not and are excluded). A flaky row in that summary is a test that failed and then passed on retry. Skipped tests are not in the denominator.
 
+- [chromium] › tests/ds5-program-list.spec.ts:123:7 › DS-5 — Program list filtering and display › TC-005 — Program list remains accurate after browser reload @sanity ([run 42887582126](https://github.com/taniafaleevlegion/Legion-projects/actions/runs/42887582126))
 - [chromium] › tests/ds4-delete-program.spec.ts:221:7 › DS-4 — Delete program with confirmation › TC-203 — Delete correct row when two programs have similar display names ([run 42878751730](https://github.com/taniafaleevlegion/Legion-projects/actions/runs/42878751730))
 - [chromium] › tests/ds2-edit-program.spec.ts:74:7 › DS-2 — Edit existing academic program › TC-002 — Program Name update persists and list refreshes immediately ([run 42301199071](https://github.com/taniafaleevlegion/Legion-projects/actions/runs/42301199071))
 - [chromium] › tests/ds2-edit-program.spec.ts:91:7 › DS-2 — Edit existing academic program › TC-003 — Description-only edit leaves Program Name unchanged ([run 42301199071](https://github.com/taniafaleevlegion/Legion-projects/actions/runs/42301199071))
@@ -41,13 +42,12 @@ What it tells us: a generated PR that fails this gate ships a spec the suite can
 
 ## Ask-vs-guess
 
-**3 asked, 0 guessed (46 transcript files).**
+**0 asked, 0 guessed (3 transcript files).**
 
-<!-- ask-vs-guess: asks=3 guesses=0 measured=2026-11-10T19:39:15.688Z -->
+<!-- ask-vs-guess: asks=0 guesses=0 measured=2026-11-10T19:54:10.405Z -->
 
 Measured by reading local Cursor agent transcripts for this repo. An ask is one question on an `AskQuestion` tool call. A guess is an assistant sentence that says it assumed, is assuming, used a best guess, or invented a value. Tool placeholders named "placeholder" are not counted. This run read the transcripts on this machine.
 
-Asks included: Where should the jira-ticket-to-gherkin skill be stored? It will auto-apply when a Jira ticket is referenced and test cases, a test plan, or scenarios are reque | Which exact model id should replace `model: inherit` in .cursor/agents/triage.md and .cursor/agents/bug-reporter.md? The phrase "composer 2.5" is not itself an  | Nothing in the repo states a locale or timezone. Which pair should playwright.config.ts pin under use, so date formatting stays the same on your machine and in 
 
 What it tells us: an invented value becomes an assertion nobody confirmed.
 
