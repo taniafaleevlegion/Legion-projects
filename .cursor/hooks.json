@@ -11,6 +11,11 @@
         "command": "node .cursor/hooks/block-weakened-assertion.mjs",
         "matcher": "Write",
         "failClosed": true
+      },
+      {
+        "command": "node .cursor/hooks/block-wont.mjs",
+        "matcher": "Write",
+        "failClosed": true
       }
     ]
   }

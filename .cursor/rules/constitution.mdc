@@ -1,0 +1,42 @@
+---
+description: Always-on Playwright constitution — must, should, and won't for this suite
+alwaysApply: true
+---
+
+# Playwright constitution
+
+Apply on every test change. Examples live in `.cursor/rules/playwright-conventions.mdc`.
+
+## MUST
+
+| Rule | Do |
+|------|----|
+| Role-based locators | `getByRole`, then label, placeholder, or text. `getByTestId` only with a comment. |
+| Web-first assertions | `expect(locator).toBeVisible()` / `toBeEnabled()` / `toHaveText()` so the expect retries. |
+| storageState auth | Session from the setup project. UI login only in the login spec. |
+| Unique self-cleaning data | `` `${prefix} ${Date.now()}` ``, then `trackProgram(uuid)` so the fixture deletes it. |
+| One tag per test | A single `{ tag: '@…' }` on the `test()` call. |
+
+## SHOULD
+
+| Rule | Do |
+|------|----|
+| Faker factories | Build records in a factory. |
+| Enums for repeated strings | Shared labels, routes, and statuses live in an enum. |
+| JSDoc on action methods | Each POM action states what the user does. |
+
+## WON'T
+
+| Never | Why |
+|-------|-----|
+| XPath | Breaks when the markup shifts and the control is unchanged. |
+| `waitForTimeout` | Sleeps on the clock, so the test flakes or wastes time. |
+| Hardcoded secrets | Credentials come from the environment and `storageState`. |
+| The `any` type | Hides a bad payload until runtime. |
+| Weakened assertions | Softening or deleting an expect to go green hides the failure. |
+| Healing a real bug | Locator drift gets a POM patch. A product defect gets a Jira bug. |
+| Tags on `describe` | A describe tag stamps every test in the block. Tag the test. |
+
+## Index
+
+Skills: `a11y-checks`, `api-cleanup`, `ci-failure-triage`, `explore-and-generate`, `jira-bug-reporter`, `jira-ticket-to-gherkin`, `pom-conventions`, `programs-api-edges`, `self-heal`. Agents: `test-writer` (plan → spec), `triage` (red run → bug or test issue), `bug-reporter` (confirmed defect → Jira).

@@ -36,7 +36,7 @@ jobs:
           curl https://cursor.com/install -fsS | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: Work the In Progress backlog
+      - name: Work the backlog, or self-heal when it is empty
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           ATLASSIAN_API_TOKEN: ${{ secrets.ATLASSIAN_API_TOKEN }}
@@ -46,6 +46,12 @@ jobs:
         run: |
           agent -p --force --trust --output-format text "$(cat <<'EOF'
           Work the In Progress backlog. Queue DS tickets in status "In Progress" that do not already have the tests-generated label. Budget: 5 tickets. For each ticket, analyze it, write a conforming Playwright spec under tests/, run that spec, open a pull request linked to the ticket, and add the tests-generated label. Never merge.
+
+          An empty queue is not a successful exit. When no DS ticket is ready to work on, self-heal the existing suite:
+
+          1. Run `npx playwright test`.
+          2. If the run is green, report that and stop.
+          3. If the run is red, follow Heal on red in .cursor/rules/qa-orchestration.mdc. Delegate to triage first. Apply .cursor/skills/self-heal/SKILL.md only when triage classifies the failure as locator drift (a test issue): one drifted Page Object locator, assertions unchanged, re-run to prove green, then open one repair pull request linked to the run. A real app bug goes to bug-reporter. Never heal a bug, never heal an assertion, and never merge.
           EOF
           )"
 
