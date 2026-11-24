@@ -1,6 +1,6 @@
 # Reliability report
 
-Generated 2026-11-23T16:48:53.056Z. Repo `taniafaleevlegion/Legion-projects`. Cursor has no built-in telemetry for these numbers. Each section says where the number came from.
+Generated 2026-11-24T16:35:06.390Z. Repo `taniafaleevlegion/Legion-projects`. Cursor has no built-in telemetry for these numbers. Each section says where the number came from.
 
 ## Flake rate
 
@@ -42,9 +42,9 @@ What it tells us: a generated PR that fails this gate ships a spec the suite can
 
 ## Ask-vs-guess
 
-**0 asked, 0 guessed (6 transcript files).**
+**0 asked, 0 guessed (1 transcript files).**
 
-<!-- ask-vs-guess: asks=0 guesses=0 measured=2026-11-23T16:48:53.056Z -->
+<!-- ask-vs-guess: asks=0 guesses=0 measured=2026-11-24T16:35:06.390Z -->
 
 Measured by reading local Cursor agent transcripts for this repo. An ask is one question on an `AskQuestion` tool call. A guess is an assistant sentence that says it assumed, is assuming, used a best guess, or invented a value. Tool placeholders named "placeholder" are not counted. This run read the transcripts on this machine.
 
